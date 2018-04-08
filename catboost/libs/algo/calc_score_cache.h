@@ -43,12 +43,14 @@ struct TBucketStats {
     double SumWeight;
     double SumDelta;
     double Count;
+    double SumTarget;
 
     inline void Add(const TBucketStats& other) {
         SumWeightedDelta += other.SumWeightedDelta;
         SumDelta += other.SumDelta;
         SumWeight += other.SumWeight;
         Count += other.Count;
+        SumTarget += other.SumTarget;
     }
 
     inline void Remove(const TBucketStats& other) {
@@ -56,8 +58,9 @@ struct TBucketStats {
         SumDelta -= other.SumDelta;
         SumWeight -= other.SumWeight;
         Count -= other.Count;
+        SumTarget -= other.SumTarget;
     }
-    SAVELOAD(SumWeightedDelta, SumWeight, SumDelta, Count);
+    SAVELOAD(SumWeightedDelta, SumWeight, SumDelta, Count, SumTarget);
 };
 
 static_assert(std::is_pod<TBucketStats>::value, "TBucketStats must be pod to avoid memory initialization in yresize");
@@ -138,6 +141,7 @@ struct TCalcScoreFold {
     TUnsizedVector<size_t> LearnPermutation;
     TUnsizedVector<size_t> IndexInFold;
     TUnsizedVector<float> LearnWeights;
+    TUnsizedVector<float> LearnTarget;
     TUnsizedVector<float> SampleWeights;
     TUnsizedVector<TBodyTail> BodyTailArr; // [tail][dim][doc]
     bool SmallestSplitSideValue;

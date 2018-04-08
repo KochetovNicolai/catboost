@@ -111,7 +111,7 @@ namespace NCatboostOptions {
         template <class, bool>
         friend class TJsonFieldHelper;
 
-    private:
+    public: //private:
         TValue Value;
         TValue DefaultValue;
         TString OptionName;

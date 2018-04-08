@@ -85,6 +85,7 @@ void TCalcScoreFold::Create(const TVector<TFold>& folds, float sampleRate) {
     LearnPermutation.yresize(DocCount);
     IndexInFold.yresize(DocCount);
     LearnWeights.yresize(DocCount);
+    LearnTarget.yresize(DocCount);
     SampleWeights.yresize(DocCount);
     Control.yresize(DocCount);
     BodyTailCount = GetMaxBodyTailCount(folds);
@@ -143,6 +144,7 @@ void TCalcScoreFold::SelectBlockFromFold(const TFoldType& fold, TSlice srcBlock,
     const auto srcControlRef = srcBlock.GetConstRef(Control);
     SetElements(srcControlRef, srcBlock.GetConstRef(fold.LearnPermutation), GetElement<size_t>, dstBlock.GetRef(LearnPermutation), &ignored);
     SetElements(srcControlRef, srcBlock.GetConstRef(fold.LearnWeights), GetElement<float>, dstBlock.GetRef(LearnWeights), &ignored);
+    SetElements(srcControlRef, srcBlock.GetConstRef(fold.LearnTarget), GetElement<float>, dstBlock.GetRef(LearnTarget), &ignored);
     SetElements(srcControlRef, srcBlock.GetConstRef(fold.SampleWeights), GetElement<float>, dstBlock.GetRef(SampleWeights), &ignored);
     for (int bodyTailIdx = 0; bodyTailIdx < BodyTailCount; ++bodyTailIdx) {
         const auto& srcBodyTail = fold.BodyTailArr[bodyTailIdx];

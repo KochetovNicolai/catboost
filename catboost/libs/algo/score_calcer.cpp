@@ -5,6 +5,7 @@
 #include <catboost/libs/options/defaults_helper.h>
 
 #include <type_traits>
+#include <iostream>
 
 static double CountDp(double avrg, const TBucketStats& leafStats) {
     return avrg * leafStats.SumWeightedDelta;
@@ -42,15 +43,32 @@ struct TStatsIndexer {
 };
 
 template<typename TIsPlainMode>
-static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStatsIndexer& indexer, ESplitType splitType, float l2Regularizer, TIsPlainMode isPlainMode, TVector<TScoreBin>* scoreBin) {
+static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStatsIndexer& indexer, ESplitType splitType,
+                           float l2Regularizer, TIsPlainMode isPlainMode, TVector<TScoreBin>* scoreBin) {
     for (int leaf = 0; leaf < leafCount; ++leaf) {
-        TBucketStats allStats{0, 0, 0, 0};
+        TBucketStats allStats{0, 0, 0, 0, 0};
         for (int bucket = 0; bucket < indexer.BucketCount; ++bucket) {
             const TBucketStats& leafStats = stats[indexer.GetIndex(leaf, bucket)];
             allStats.Add(leafStats);
         }
-        TBucketStats trueStats{0, 0, 0, 0};
-        TBucketStats falseStats{0, 0, 0, 0};
+        TBucketStats trueStats{0, 0, 0, 0, 0};
+        TBucketStats falseStats{0, 0, 0, 0, 0};
+
+        double allAvg = isPlainMode ? CalcAverage(allStats.SumWeightedDelta, allStats.SumWeight, l2Regularizer)
+                                    : CalcAverage(allStats.SumDelta, allStats.Count, l2Regularizer);
+        double no_split_dp = CountDp(allAvg, allStats);
+        double no_split_d2 = CountD2(allAvg, allStats);
+
+        const bool use_monotonic_constraints = true;
+        auto compare = [](double true_target, double false_target)
+        {
+            if (true_target < false_target) {
+                std::cerr << "Monotonic: " << true_target << ' ' << false_target << std::endl;
+                return true;
+            }
+            return false;
+        };
+
         if (splitType == ESplitType::OnlineCtr || splitType == ESplitType::FloatFeature) {
             trueStats = allStats;
             for (int splitIdx = 0; splitIdx < indexer.BucketCount - 1; ++splitIdx) {
@@ -64,8 +82,13 @@ static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStat
                     trueAvrg = CalcAverage(trueStats.SumDelta, trueStats.Count, l2Regularizer);
                     falseAvrg = CalcAverage(falseStats.SumDelta, falseStats.Count, l2Regularizer);
                 }
-                (*scoreBin)[splitIdx].DP += CountDp(trueAvrg, trueStats) + CountDp(falseAvrg, falseStats);
-                (*scoreBin)[splitIdx].D2 += CountD2(trueAvrg, trueStats) + CountD2(falseAvrg, falseStats);
+                if (use_monotonic_constraints && compare(trueStats.SumTarget, falseStats.SumTarget)) {
+                    (*scoreBin)[splitIdx].DP += no_split_dp;
+                    (*scoreBin)[splitIdx].D2 += no_split_d2;
+                } else {
+                    (*scoreBin)[splitIdx].DP += CountDp(trueAvrg, trueStats) + CountDp(falseAvrg, falseStats);
+                    (*scoreBin)[splitIdx].D2 += CountD2(trueAvrg, trueStats) + CountD2(falseAvrg, falseStats);
+                }
             }
         } else {
             Y_ASSERT(splitType == ESplitType::OneHotFeature);
@@ -84,8 +107,13 @@ static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStat
                     trueAvrg = CalcAverage(trueStats.SumDelta, trueStats.Count, l2Regularizer);
                     falseAvrg = CalcAverage(falseStats.SumDelta, falseStats.Count, l2Regularizer);
                 }
-                (*scoreBin)[splitIdx].DP += CountDp(trueAvrg, trueStats) + CountDp(falseAvrg, falseStats);
-                (*scoreBin)[splitIdx].D2 += CountD2(trueAvrg, trueStats) + CountD2(falseAvrg, falseStats);
+                if (use_monotonic_constraints && compare(trueStats.SumTarget, falseStats.SumTarget)) {
+                    (*scoreBin)[splitIdx].DP += no_split_dp;
+                    (*scoreBin)[splitIdx].D2 += no_split_d2;
+                } else {
+                    (*scoreBin)[splitIdx].DP += CountDp(trueAvrg, trueStats) + CountDp(falseAvrg, falseStats);
+                    (*scoreBin)[splitIdx].D2 += CountD2(trueAvrg, trueStats) + CountD2(falseAvrg, falseStats);
+                }
             }
         }
     }
@@ -173,11 +201,14 @@ static void UpdateDeltaCount(const TVector<TFullIndexType>& singleIdx, const dou
 }
 
 template<typename TFullIndexType>
-static void UpdateWeighted(const TVector<TFullIndexType>& singleIdx, const double* weightedDer, const float* sampleWeights, int docBegin, int docEnd, TBucketStats* stats) {
+static void UpdateWeighted(const TVector<TFullIndexType>& singleIdx,
+                           const double* weightedDer, const float* sampleWeights, const float* target,
+                           int docBegin, int docEnd, TBucketStats* stats) {
     for (int doc = docBegin; doc < docEnd; ++doc) {
         TBucketStats& leafStats = stats[singleIdx[doc]];
         leafStats.SumWeightedDelta += weightedDer[doc];
         leafStats.SumWeight += sampleWeights[doc];
+        leafStats.SumTarget += target[doc];
     }
 }
 
@@ -215,11 +246,12 @@ inline static void CalcStatsKernel(const TIsCaching& isCaching,
     const bool hasPairwiseWeights = !bt.PairwiseWeights.empty();
     const float* weightsData = hasPairwiseWeights ? GetDataPtr(bt.PairwiseWeights) : GetDataPtr(fold.LearnWeights);
     const float* sampleWeightsData = hasPairwiseWeights ? GetDataPtr(bt.SamplePairwiseWeights) : GetDataPtr(fold.SampleWeights);
+    const float* targetData = GetDataPtr(fold.LearnTarget);
     if (isPlainMode) {
-        UpdateWeighted(singleIdx, GetDataPtr(bt.SampleWeightedDerivatives[dim]), sampleWeightsData, 0, bt.TailFinish, stats);
+        UpdateWeighted(singleIdx, GetDataPtr(bt.SampleWeightedDerivatives[dim]), sampleWeightsData, targetData, 0, bt.TailFinish, stats);
     } else {
         UpdateDeltaCount(singleIdx, GetDataPtr(bt.WeightedDerivatives[dim]), weightsData, bt.BodyFinish, stats);
-        UpdateWeighted(singleIdx, GetDataPtr(bt.SampleWeightedDerivatives[dim]), sampleWeightsData, bt.BodyFinish, bt.TailFinish, stats);
+        UpdateWeighted(singleIdx, GetDataPtr(bt.SampleWeightedDerivatives[dim]), sampleWeightsData, targetData, bt.BodyFinish, bt.TailFinish, stats);
     }
     if (isCaching) {
         FixUpStats(depth, indexer, fold.SmallestSplitSideValue, stats);
