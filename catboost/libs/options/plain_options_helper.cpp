@@ -184,6 +184,7 @@ namespace NCatboostOptions {
         dataProcessingOptions.SetType(NJson::JSON_MAP);
 
         CopyOption(plainOptions, "ignored_features", &dataProcessingOptions, &seenKeys);
+        CopyOption(plainOptions, "monotonic_features", &dataProcessingOptions, &seenKeys);
         CopyOption(plainOptions, "has_time", &dataProcessingOptions, &seenKeys);
         CopyOption(plainOptions, "classes_count", &dataProcessingOptions, &seenKeys);
         CopyOption(plainOptions, "class_names", &dataProcessingOptions, &seenKeys);

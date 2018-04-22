@@ -156,7 +156,7 @@ void MapCalcScore(double scoreStDev, int depth, TCandidateList* candidateList, T
         TVector<TVector<double>> allScores(subcandidateCount);
         for (int subcandidateIdx = 0; subcandidateIdx < subcandidateCount; ++subcandidateIdx) {
             const auto& splitInfo = candidate.Candidates[subcandidateIdx];
-            allScores[subcandidateIdx] = GetScores(GetScoreBins(allStats[subcandidateIdx], splitInfo.SplitCandidate.Type, depth, ctx->Params));
+            allScores[subcandidateIdx] = GetScores(GetScoreBins(allStats[subcandidateIdx], splitInfo.SplitCandidate.Type, depth, ctx->Params, splitInfo.SplitCandidate.FeatureIdx));
         }
         SetBestScore(randSeed + candidateIdx, allScores, scoreStDev, &candidate.Candidates);
     }, 0, candidateCount, NPar::TLocalExecutor::WAIT_COMPLETE);

@@ -44,7 +44,7 @@ struct TStatsIndexer {
 
 template<typename TIsPlainMode>
 static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStatsIndexer& indexer, ESplitType splitType,
-                           float l2Regularizer, TIsPlainMode isPlainMode, TVector<TScoreBin>* scoreBin) {
+                           float l2Regularizer, TIsPlainMode isPlainMode, TVector<TScoreBin>* scoreBin, int monotonicity) {
     for (int leaf = 0; leaf < leafCount; ++leaf) {
         TBucketStats allStats{0, 0, 0, 0, 0};
         for (int bucket = 0; bucket < indexer.BucketCount; ++bucket) {
@@ -59,13 +59,25 @@ static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStat
         double no_split_dp = CountDp(allAvg, allStats);
         double no_split_d2 = CountD2(allAvg, allStats);
 
-        const bool use_monotonic_constraints = true;
-        auto compare = [](double true_target, double false_target)
+        //if (monotonicity != 0)
+        //    std::cerr << "mon: " << monotonicity << std::endl;
+
+        auto compare = [monotonicity](double avg_true, double avg_false, double true_target, double false_target)
         {
-            if (true_target < false_target) {
-                std::cerr << "Monotonic: " << true_target << ' ' << false_target << std::endl;
+            //std::cerr << '-' << true_target << ' ' << false_target << ' ' << true_target + false_target << ' ' <<  -monotonicity << ' ' << (-monotonicity < 0)
+            //          << ' ' << (true_target > false_target) << ' ' << (-monotonicity < 0 && true_target > false_target) << std::endl;
+            if (-monotonicity > 0 && true_target < false_target)
+            {
+                //std::cerr << "+1 " << avg_true << ' ' << avg_false << ' ' << true_target << ' ' << false_target << std::endl;
                 return true;
             }
+            if (-monotonicity < 0 && (avg_true > avg_false || true_target > false_target))
+            {
+                //if (true_target < false_target)
+                //std::cerr << "-1 " << avg_true << ' ' << avg_false << ' ' << true_target << ' ' << false_target << std::endl;
+                return true;
+            }
+
             return false;
         };
 
@@ -82,7 +94,11 @@ static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStat
                     trueAvrg = CalcAverage(trueStats.SumDelta, trueStats.Count, l2Regularizer);
                     falseAvrg = CalcAverage(falseStats.SumDelta, falseStats.Count, l2Regularizer);
                 }
-                if (use_monotonic_constraints && compare(trueStats.SumTarget, falseStats.SumTarget)) {
+
+                //std::cerr << trueStats.Count << ' ' << falseStats.Count << ' ' << trueStats.Count + falseStats.Count << std::endl;
+                //std::cerr << trueStats.SumTarget << ' ' << falseStats.SumTarget << ' ' << trueStats.SumTarget + falseStats.SumTarget << std::endl;
+
+                if (compare(trueAvrg, falseAvrg, trueStats.SumTarget, falseStats.SumTarget)) { //compare(trueStats.SumTarget, falseStats.SumTarget)) {
                     (*scoreBin)[splitIdx].DP += no_split_dp;
                     (*scoreBin)[splitIdx].D2 += no_split_d2;
                 } else {
@@ -107,7 +123,7 @@ static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStat
                     trueAvrg = CalcAverage(trueStats.SumDelta, trueStats.Count, l2Regularizer);
                     falseAvrg = CalcAverage(falseStats.SumDelta, falseStats.Count, l2Regularizer);
                 }
-                if (use_monotonic_constraints && compare(trueStats.SumTarget, falseStats.SumTarget)) {
+                if (compare(trueAvrg, falseAvrg, trueStats.SumTarget, falseStats.SumTarget)) { //compare(trueStats.SumTarget, falseStats.SumTarget)) {
                     (*scoreBin)[splitIdx].DP += no_split_dp;
                     (*scoreBin)[splitIdx].D2 += no_split_d2;
                 } else {
@@ -238,9 +254,9 @@ inline static void CalcStatsKernel(const TIsCaching& isCaching,
                             TBucketStats* stats) {
     Y_ASSERT(!isCaching || depth > 0);
     if (isCaching) {
-        Fill(stats + indexer.CalcSize(depth - 1), stats + indexer.CalcSize(depth), TBucketStats{0, 0, 0, 0});
+        Fill(stats + indexer.CalcSize(depth - 1), stats + indexer.CalcSize(depth), TBucketStats{0, 0, 0, 0, 0});
     } else {
-        Fill(stats, stats + indexer.CalcSize(depth), TBucketStats{0, 0, 0, 0});
+        Fill(stats, stats + indexer.CalcSize(depth), TBucketStats{0, 0, 0, 0, 0});
     }
 
     const bool hasPairwiseWeights = !bt.PairwiseWeights.empty();
@@ -288,7 +304,8 @@ static TVector<TScoreBin> CalcScoreImpl(const TIsCaching& isCaching,
         const TStatsIndexer& indexer,
         int depth,
         int splitStatsCount,
-        TBucketStats* splitStats) {
+        TBucketStats* splitStats,
+        int monotonicity) {
     Y_ASSERT(!isCaching || depth > 0);
     const int approxDimension = fold.GetApproxDimension();
     const int leafCount = 1 << depth;
@@ -299,9 +316,9 @@ static TVector<TScoreBin> CalcScoreImpl(const TIsCaching& isCaching,
             TBucketStats* stats = splitStats + (bodyTailIdx * approxDimension + dim) * splitStatsCount;
             CalcStatsKernel(isCaching, singleIdx, fold, isPlainMode, indexer, depth, bt, dim, stats);
             if (isPlainMode) {
-                UpdateScoreBin(stats, leafCount, indexer, splitType, l2Regularizer, /*isPlainMode=*/std::true_type(), &scoreBins);
+                UpdateScoreBin(stats, leafCount, indexer, splitType, l2Regularizer, /*isPlainMode=*/std::true_type(), &scoreBins, monotonicity);
             } else {
-                UpdateScoreBin(stats, leafCount, indexer, splitType, l2Regularizer, /*isPlainMode=*/std::false_type(), &scoreBins);
+                UpdateScoreBin(stats, leafCount, indexer, splitType, l2Regularizer, /*isPlainMode=*/std::false_type(), &scoreBins, monotonicity);
             }
         }
     }
@@ -321,21 +338,30 @@ TVector<TScoreBin> CalcScore(const TAllFeatures& af,
     const TStatsIndexer indexer(splitCount + 1);
     const int bucketIndexBits = GetValueBitCount(GetSplitCount(splitsCount, af.OneHotValues, split) + 1) + depth + 1;
 
+    const auto & monotonic_features = fitParams.DataProcessingOptions->MonotonicFeatures.Get();
+    THashSet<int> monotonic_set(monotonic_features.begin(), monotonic_features.end());
+    int monotonicity = monotonic_set.has(split.FeatureIdx) ? 1 : 0;
+
+//    std::cerr << "Monotonic: ";
+//    for (auto & f : monotonic_features)
+//        std::cerr << " " << f;
+//    std::cerr << std::endl;
+
     decltype(auto) SelectCalcScoreImpl = [&] (auto isCaching, const TCalcScoreFold& fold, int splitStatsCount, auto* splitStats) {
         const bool isPlainMode = IsPlainMode(fitParams.BoostingOptions->BoostingType);
         const float l2Regularizer = static_cast<const float>(fitParams.ObliviousTreeOptions->L2Reg);
         if (bucketIndexBits <= 8) {
             TVector<ui8> singleIdx;
             BuildSingleIndex(fold, af, allCtrs, split, indexer, &singleIdx);
-            return CalcScoreImpl(isCaching, singleIdx, fold, isPlainMode, l2Regularizer, split.Type, indexer, depth, splitStatsCount, GetDataPtr(*splitStats));
+            return CalcScoreImpl(isCaching, singleIdx, fold, isPlainMode, l2Regularizer, split.Type, indexer, depth, splitStatsCount, GetDataPtr(*splitStats), monotonicity);
         } else if (bucketIndexBits <= 16) {
             TVector<ui16> singleIdx;
             BuildSingleIndex(fold, af, allCtrs, split, indexer, &singleIdx);
-            return CalcScoreImpl(isCaching, singleIdx, fold, isPlainMode, l2Regularizer, split.Type, indexer, depth, splitStatsCount, GetDataPtr(*splitStats));
+            return CalcScoreImpl(isCaching, singleIdx, fold, isPlainMode, l2Regularizer, split.Type, indexer, depth, splitStatsCount, GetDataPtr(*splitStats), monotonicity);
         } else if (bucketIndexBits <= 32) {
             TVector<ui32> singleIdx;
             BuildSingleIndex(fold, af, allCtrs, split, indexer, &singleIdx);
-            return CalcScoreImpl(isCaching, singleIdx, fold, isPlainMode, l2Regularizer, split.Type, indexer, depth, splitStatsCount, GetDataPtr(*splitStats));
+            return CalcScoreImpl(isCaching, singleIdx, fold, isPlainMode, l2Regularizer, split.Type, indexer, depth, splitStatsCount, GetDataPtr(*splitStats), monotonicity);
         }
         CB_ENSURE(false, "too deep or too much splitsCount for score calculation");
     };
@@ -414,7 +440,7 @@ TStats3D CalcStats3D(const TAllFeatures& af,
     CB_ENSURE(false, "too deep or too much splitsCount for score calculation");
 }
 
-TVector<TScoreBin> GetScoreBins(const TStats3D& stats, ESplitType splitType, int depth, const NCatboostOptions::TCatBoostOptions& fitParams) {
+TVector<TScoreBin> GetScoreBins(const TStats3D& stats, ESplitType splitType, int depth, const NCatboostOptions::TCatBoostOptions& fitParams, int featureIdx) {
     const TVector<TBucketStats>& bucketStats = stats.Stats;
     const int splitStatsCount = stats.BucketCount * stats.MaxLeafCount;
     const int bucketCount = stats.BucketCount;
@@ -423,12 +449,17 @@ TVector<TScoreBin> GetScoreBins(const TStats3D& stats, ESplitType splitType, int
     const int leafCount = 1 << depth;
     const TStatsIndexer indexer(bucketCount);
     TVector<TScoreBin> scoreBin(bucketCount);
+
+    const auto & monotonic_features = fitParams.DataProcessingOptions->MonotonicFeatures.Get();
+    THashSet<int> monotonic_set(monotonic_features.begin(), monotonic_features.end());
+    int monotonicity = 1; //monotonic_set.has(featureIdx) ? 1 : 0;
+
     for (int statsIdx = 0; statsIdx * splitStatsCount < bucketStats.ysize(); ++statsIdx) {
         const TBucketStats* stats = GetDataPtr(bucketStats) + statsIdx * splitStatsCount;
         if (isPlainMode) {
-            UpdateScoreBin(stats, leafCount, indexer, splitType, l2Regularizer, /*isPlainMode=*/std::true_type(), &scoreBin);
+            UpdateScoreBin(stats, leafCount, indexer, splitType, l2Regularizer, /*isPlainMode=*/std::true_type(), &scoreBin, monotonicity);
         } else {
-            UpdateScoreBin(stats, leafCount, indexer, splitType, l2Regularizer, /*isPlainMode=*/std::false_type(), &scoreBin);
+            UpdateScoreBin(stats, leafCount, indexer, splitType, l2Regularizer, /*isPlainMode=*/std::false_type(), &scoreBin, monotonicity);
         }
     }
     return scoreBin;

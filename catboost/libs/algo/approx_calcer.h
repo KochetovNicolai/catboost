@@ -12,6 +12,7 @@
 
 #include <catboost/libs/logging/logging.h>
 #include <catboost/libs/logging/profile_info.h>
+#include <iostream>
 
 template <bool StoreExpApprox, int VectorWidth>
 inline void UpdateApproxKernel(const double* leafValues, const TIndexType* indices, double* resArr) {
@@ -438,35 +439,42 @@ void CalcLeafValuesSimple(
     const TVector<TIndexType>& indices,
     TLearnContext* ctx,
     TVector<TVector<double>>* leafValues
-) {
+)
+{
     const int scratchSize = error.GetErrorType() == EErrorType::PerObjectError
-        ? APPROX_BLOCK_SIZE * CB_THREAD_LIMIT
-        : learnSampleCount;
+                            ? APPROX_BLOCK_SIZE * CB_THREAD_LIMIT
+                            : learnSampleCount;
     TVector<TDer1Der2> weightedDers(scratchSize);
 
     const int queryCount = ff.LearnQueriesInfo.ysize();
-    const auto& learnerOptions = ctx->Params.ObliviousTreeOptions.Get();
+    const auto & learnerOptions = ctx->Params.ObliviousTreeOptions.Get();
     const int gradientIterations = learnerOptions.LeavesEstimationIterations;
     const auto estimationMethod = ctx->Params.ObliviousTreeOptions->LeavesEstimationMethod;
-    auto& localExecutor = ctx->LocalExecutor;
+    auto & localExecutor = ctx->LocalExecutor;
 
-    const TFold::TBodyTail& bt = ff.BodyTailArr[0];
+    const TFold::TBodyTail & bt = ff.BodyTailArr[0];
     TVector<double> approxes(bt.Approx[0].begin(), bt.Approx[0].begin() + learnSampleCount); // scratch
     TVector<TSum> buckets(leafCount, gradientIterations); // scratch
     TVector<double> curLeafValues; // scratch vector
-    for (int it = 0; it < gradientIterations; ++it) {
-        UpdateBucketsSimple(indices, ff, bt, approxes, /*approxDeltas*/ {}, error, learnSampleCount, queryCount, it, estimationMethod, ctx->Params, ctx->Rand.GenRand(), &localExecutor, &buckets, &weightedDers);
+    for (int it = 0; it < gradientIterations; ++it)
+    {
+        UpdateBucketsSimple(indices, ff, bt, approxes, /*approxDeltas*/ {}, error, learnSampleCount, queryCount, it,
+                            estimationMethod, ctx->Params, ctx->Rand.GenRand(), &localExecutor, &buckets,
+                            &weightedDers);
         CalcMixedModelSimple(buckets, it, ctx->Params, &curLeafValues);
-        UpdateApproxDeltas<TError::StoreExpApprox>(indices, learnSampleCount, &ctx->LocalExecutor, &curLeafValues, &approxes);
+        UpdateApproxDeltas<TError::StoreExpApprox>(indices, learnSampleCount, &ctx->LocalExecutor, &curLeafValues,
+                                                   &approxes);
     }
 
     leafValues->assign(1, TVector<double>(leafCount));
     const float l2Regularizer = learnerOptions.L2Reg;
-    for (int leaf = 0; leaf < leafCount; ++leaf) {
-        for (int it = 0; it < gradientIterations; ++it) {
+    for (int leaf = 0; leaf < leafCount; ++leaf)
+    {
+        for (int it = 0; it < gradientIterations; ++it)
+        {
             (*leafValues)[0][leaf] += (estimationMethod == ELeavesEstimation::Newton)
-                ? CalcModelNewton(buckets[leaf], it, l2Regularizer)
-                : CalcModelGradient(buckets[leaf], it, l2Regularizer);
+                                      ? CalcModelNewton(buckets[leaf], it, l2Regularizer)
+                                      : CalcModelGradient(buckets[leaf], it, l2Regularizer);
         }
     }
 }

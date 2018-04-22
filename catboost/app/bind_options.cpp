@@ -533,6 +533,16 @@ void ParseCommandLine(int argc, const char* argv[],
             }
         });
 
+    parser.AddLongOption('M', "monotonic-features",
+                         "todo")
+            .RequiredArgument("INDEXES")
+            .Handler1T<TString>([plainJsonPtr](const TString& indicesLine) {
+                auto ignoredFeatures = ParseIndicesLine(indicesLine);
+                for (int f : ignoredFeatures) {
+                    (*plainJsonPtr)["monotonic_features"].AppendValue(f);
+                }
+            });
+
     parser.AddLongOption("has-time", "Use dataset order as time")
         .NoArgument()
         .Handler0([plainJsonPtr]() {

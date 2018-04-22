@@ -10,6 +10,7 @@
 #include <catboost/libs/distributed/master.h>
 #include <catboost/libs/helpers/interrupt.h>
 #include <catboost/libs/logging/profile_info.h>
+#include <iostream>
 
 struct TCompetitor;
 
@@ -64,13 +65,66 @@ void UpdateLearningFold(
 }
 
 template <typename TError>
+void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
+                           const TSplitTree& tree,
+                           TLearnContext* ctx,
+                           int numMonotonicFeatures)
+{
+    const int approxDimension = ctx->LearnProgress.AveragingFold.GetApproxDimension();
+    const int leafCount = tree.GetLeafCount();
+
+    for (int dim = 0; dim < approxDimension; ++dim)
+    {
+        for (size_t shift = 1; shift < (1u << numMonotonicFeatures); shift *= 2)
+        {
+            for (int leaf = 0; leaf < leafCount; leaf += 2 * shift)
+            {
+                double mx_l = (*leafValues)[dim][leaf];
+                double mn_r = (*leafValues)[dim][leaf + shift];
+
+                for (int i = 1; i < shift; ++i)
+                {
+                    mx_l = std::max(mx_l, (*leafValues)[dim][leaf + i]);
+                    mn_r = std::min(mn_r, (*leafValues)[dim][leaf + shift + i]);
+                }
+
+                std::cerr << "mx_l " << mx_l << " mn_r " << mn_r << std::endl;
+                if (mx_l > mn_r)
+                {
+                    double med = 0.5 * (mx_l + mn_r);
+                    for (int i = 0; i < shift; ++i)
+                    {
+                        auto & val_l = (*leafValues)[dim][leaf + i];
+                        auto & val_r = (*leafValues)[dim][leaf + shift + i];
+                        val_l = std::min(val_l, med);
+                        val_r = std::max(val_r, med);
+                    }
+                }
+            }
+        }
+    }
+
+//    std::cerr << "-1 Leaves:" << std::endl;
+//    for (auto & vals : *leafValues)
+//    {
+//        std::cerr << "dim: ";
+//        for (auto val : vals)
+//            std::cerr << val << ' ';
+//        std::cerr << std::endl;
+//    }
+}
+
+template <typename TError>
 void UpdateAveragingFold(
     const TDataset& learnData,
     const TDataset* testData,
     const TError& error,
     const TSplitTree& bestSplitTree,
     TLearnContext* ctx,
-    TVector<TVector<double>>* treeValues
+    TVector<TVector<double>>* treeValues,
+    TVector<TVector<double>>* prevTreeValues,
+    int numMonotonicFeatures,
+    bool useLearningRate
 ) {
     TProfileInfo& profile = ctx->Profile;
     TVector<TIndexType> indices;
@@ -85,6 +139,44 @@ void UpdateAveragingFold(
         treeValues,
         &indices
     );
+
+    const int approxDimension = ctx->LearnProgress.AvrgApprox.ysize();
+    const double learningRate = ctx->Params.BoostingOptions->LearningRate;
+    const auto sampleCount = learnData.GetSampleCount() + (testData ? testData->GetSampleCount() : 0);
+
+    if (prevTreeValues)
+    {
+        for (int i = 0; i < treeValues->ysize(); ++i)
+        {
+            auto & treeDim = (*treeValues)[i];
+            auto & prevTreeDim = (*prevTreeValues)[i];
+            for (size_t j = 0; j < treeDim.ysize(); ++j)
+                treeDim[j] = prevTreeDim[j] + treeDim[j] * learningRate;
+        }
+    }
+
+    MonotonizeLeaveValues<TError>(treeValues, bestSplitTree, ctx, numMonotonicFeatures);
+
+    if (prevTreeValues)
+    {
+        for (int i = 0; i < treeValues->ysize(); ++i)
+        {
+            auto & treeDim = (*treeValues)[i];
+            auto & prevTreeDim = (*prevTreeValues)[i];
+            for (size_t j = 0; j < treeDim.ysize(); ++j)
+                treeDim[j] -= prevTreeDim[j];
+        }
+    }
+
+//    std::cerr << "0 Leaves:" << std::endl;
+//    for (auto & vals : *treeValues)
+//    {
+//        std::cerr << "dim: ";
+//        for (auto val : vals)
+//            std::cerr << val << ' ';
+//        std::cerr << std::endl;
+//    }
+
     auto& currentTreeStats = ctx->LearnProgress.TreeStats.emplace_back();
     currentTreeStats.LeafWeightsSum.resize((*treeValues)[0].size());
     for (auto docId = 0; docId < learnData.GetSampleCount(); ++docId) {
@@ -95,15 +187,13 @@ void UpdateAveragingFold(
         NormalizeLeafValues(indices, learnData.GetSampleCount(), treeValues);
     }
 
-    const int approxDimension = ctx->LearnProgress.AvrgApprox.ysize();
-    const double learningRate = ctx->Params.BoostingOptions->LearningRate;
-    const auto sampleCount = learnData.GetSampleCount() + (testData ? testData->GetSampleCount() : 0);
-
     TVector<TVector<double>> expTreeValues;
     expTreeValues.yresize(approxDimension);
     for (int dim = 0; dim < approxDimension; ++dim) {
-        for (auto& leafVal : (*treeValues)[dim]) {
-            leafVal *= learningRate;
+        if (useLearningRate && !prevTreeValues) {
+            for (auto & leafVal : (*treeValues)[dim]) {
+                leafVal *= learningRate;
+            }
         }
         expTreeValues[dim] = (*treeValues)[dim];
         ExpApproxIf(TError::StoreExpApprox, &expTreeValues[dim]);
@@ -142,6 +232,38 @@ void UpdateAveragingFold(
             NPar::TLocalExecutor::WAIT_COMPLETE
         );
     }
+}
+
+/// Move monotonic features to the end of list. Return the number of monotonic features.
+template <typename TError>
+int ReorderSplits(TSplitTree& splitTree, const TVector<int>& monotonicFeatures)
+{
+    THashSet<int> monotonic(monotonicFeatures.begin(), monotonicFeatures.end());
+
+    std::cerr << "Mon: ";
+    for (auto f : monotonicFeatures)
+        std::cerr << f << ' ';
+    std::cerr << std::endl << "Indexes: ";
+    for (auto & spl : splitTree.Splits)
+        std::cerr << spl.FeatureIdx << ' ';
+    std::cerr << std::endl;
+
+    int left = 0;
+    int right = splitTree.Splits.ysize() - 1;
+    while (left < right)
+    {
+        while (left < splitTree.Splits.ysize() && !monotonic.has(splitTree.Splits[left].FeatureIdx))
+            ++left;
+        while (right >=0 && monotonic.has(splitTree.Splits[right].FeatureIdx))
+            --right;
+        if (left < right)
+        {
+            std::swap(splitTree.Splits[left], splitTree.Splits[right]);
+            ++left;
+            --right;
+        }
+    }
+    return splitTree.Splits.ysize() - left;
 }
 
 template <typename TError>
@@ -183,6 +305,10 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
         );
     }
     CheckInterrupted(); // check after long-lasting operation
+
+    int numMonotonicFeatures = ReorderSplits<TError>(bestSplitTree, ctx->Params.DataProcessingOptions->MonotonicFeatures.Get());
+    std::cerr << "numMonotonicFeatures: " << numMonotonicFeatures << std::endl;
+
     {
         TVector<TFold*> trainFolds;
         for (int foldId = 0; foldId < foldCount; ++foldId) {
@@ -246,12 +372,62 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
         CheckInterrupted(); // check after long-lasting operation
 
         TVector<TVector<double>> treeValues; // [dim][leafId]
-        UpdateAveragingFold(learnData, testData, error, bestSplitTree, ctx, &treeValues);
+        UpdateAveragingFold(learnData, testData, error, bestSplitTree, ctx, &treeValues, nullptr, numMonotonicFeatures, true);
 
         ctx->LearnProgress.LeafValues.push_back(treeValues);
         ctx->LearnProgress.TreeStruct.push_back(bestSplitTree);
+        ctx->LearnProgress.NumMonotonicFeatures.push_back(numMonotonicFeatures);
 
         profile.AddOperation("Update final approxes");
         CheckInterrupted(); // check after long-lasting operation
+
+        if (ctx->LearnProgress.TreeStruct.ysize() > 1)
+        {
+            auto randTreeIndex = ctx->Rand.GenRand() % (ctx->LearnProgress.TreeStruct.ysize() - 1);
+            //for (int randTreeIndex = 0; randTreeIndex < ctx->LearnProgress.TreeStruct.ysize() - 1; ++randTreeIndex)
+            {
+                auto & randTree = ctx->LearnProgress.TreeStruct[randTreeIndex];
+                auto & randTreeValues = ctx->LearnProgress.LeafValues[randTreeIndex];
+                auto randTreeNumMonotonicFeatures = ctx->LearnProgress.NumMonotonicFeatures[randTreeIndex];
+                TVector<TVector<double>> randTreeAdditionalValues; // [dim][leafId]
+
+                std::cerr << "Prev Leaves:" << std::endl;
+                for (auto & vals : randTreeValues)
+                {
+                    std::cerr << "dim: ";
+                    for (auto val : vals)
+                        std::cerr << val << ' ';
+                    std::cerr << std::endl;
+                }
+
+                UpdateAveragingFold(learnData, testData, error, randTree, ctx, &randTreeAdditionalValues, &randTreeValues, randTreeNumMonotonicFeatures, true);
+
+                std::cerr << "Fixed Leaves:" << std::endl;
+                for (auto & vals : randTreeAdditionalValues)
+                {
+                    std::cerr << "dim: ";
+                    for (auto val : vals)
+                        std::cerr << val << ' ';
+                    std::cerr << std::endl;
+                }
+
+                for (int i = 0; i < randTreeValues.ysize(); ++i)
+                {
+                    auto & treeDim = (randTreeValues)[i];
+                    auto & prevTreeDim = (randTreeAdditionalValues)[i];
+                    for (size_t j = 0; j < treeDim.ysize(); ++j)
+                        treeDim[j] += prevTreeDim[j];
+                }
+            }
+        }
+
+        std::cerr << "Result Leaves:" << std::endl;
+        for (auto & vals : treeValues)
+        {
+            std::cerr << "dim: ";
+            for (auto val : vals)
+                std::cerr << val << ' ';
+            std::cerr << std::endl;
+        }
     }
 }

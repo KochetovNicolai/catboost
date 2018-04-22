@@ -81,5 +81,5 @@ TStats3D CalcStats3D(
     int depth,
     TBucketStatsCache* statsFromPrevTree);
 
-TVector<TScoreBin> GetScoreBins(const TStats3D& stats, ESplitType splitType, int depth, const NCatboostOptions::TCatBoostOptions& fitParams);
+TVector<TScoreBin> GetScoreBins(const TStats3D& stats, ESplitType splitType, int depth, const NCatboostOptions::TCatBoostOptions& fitParams, int FeatureIdx = -1);
 
