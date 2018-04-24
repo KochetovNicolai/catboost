@@ -1409,6 +1409,8 @@ class CatBoostClassifier(CatBoost):
         The name that should be displayed in the visualization tools.
     ignored_features : list, [default=None]
         Indices of features that should be excluded when training.
+    monotonic_features : list, [default=None]
+        Indexes of features which should be monotonic
     train_dir : string, [default=None]
         The directory in which you want to record generated in the process of learning files.
     custom_metric : object, [default=None]
@@ -1515,6 +1517,7 @@ class CatBoostClassifier(CatBoost):
         random_strength=None,
         name=None,
         ignored_features=None,
+        monotonic_features=None,
         train_dir=None,
         custom_loss=None,
         custom_metric=None,
@@ -1844,6 +1847,7 @@ class CatBoostRegressor(CatBoost):
         random_strength=None,
         name=None,
         ignored_features=None,
+        monotonic_features=None,
         train_dir=None,
         custom_metric=None,
         eval_metric=None,
