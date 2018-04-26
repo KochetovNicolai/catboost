@@ -216,6 +216,7 @@ void UpdateLeavesApproxes(
     TProfileInfo& profile = ctx->Profile;
     const int approxDimension = ctx->LearnProgress.AvrgApprox.ysize();
     const double learningRate = ctx->Params.BoostingOptions->LearningRate;
+    const auto sampleCount = learnData.GetSampleCount() + (testData ? testData->GetSampleCount() : 0);
 
     TVector<TVector<double>> expTreeValues;
     expTreeValues.yresize(approxDimension);
