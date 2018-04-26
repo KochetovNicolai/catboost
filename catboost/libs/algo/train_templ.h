@@ -78,7 +78,7 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
     int numSplits = splits.ysize();
     while (numMonotonicSplits < numSplits) {
         const auto & split = splits[numSplits - numMonotonicSplits - 1];
-        if (0 <= split.FeatureIdx && split.FeatureIdx <= monotonicFeatures.ysize()
+        if (0 <= split.FeatureIdx && split.FeatureIdx < monotonicFeatures.ysize()
             && monotonicFeatures[split.FeatureIdx] != EMonotonicity::None)
             ++numMonotonicSplits;
     }
