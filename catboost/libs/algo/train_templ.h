@@ -356,7 +356,7 @@ void SiftDownMonotonicSplits(TSplitTree* splitTree, const TVector<EMonotonicity>
 {
     std::cerr << "Mon: ";
     for (auto f : monotonicFeatures)
-        std::cerr << f << ' ';
+        std::cerr << static_cast<int>(f) << ' ';
     std::cerr << std::endl << "Indexes: ";
     for (auto & spl : splitTree->Splits)
         std::cerr << spl.FeatureIdx << ' ';
