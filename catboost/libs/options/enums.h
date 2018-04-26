@@ -189,3 +189,10 @@ enum class EModelType {
     AppleCoreML,
     CPP
 };
+
+enum class EMonotonicity
+{
+    Descending = -1,
+    None = 0,
+    Ascending = 1,
+};

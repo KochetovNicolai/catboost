@@ -36,7 +36,6 @@ struct TLearnProgress {
     TVector<TSplitTree> TreeStruct;
     TVector<TTreeStats> TreeStats;
     TVector<TVector<TVector<double>>> LeafValues; // [numTree][dim][bucketId]
-    TVector<int> NumMonotonicFeatures;
 
     TVector<TVector<double>> LearnErrorsHistory;
     TVector<TVector<double>> TestErrorsHistory;

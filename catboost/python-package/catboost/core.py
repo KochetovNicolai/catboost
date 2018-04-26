@@ -1410,7 +1410,7 @@ class CatBoostClassifier(CatBoost):
     ignored_features : list, [default=None]
         Indices of features that should be excluded when training.
     monotonic_features : list, [default=None]
-        Indexes of features which should be monotonic
+        List of integers from set {-1, 0, 1} = {Descending, None, Ascending}. I-th value set monotonic constraint for i-th feature.
     train_dir : string, [default=None]
         The directory in which you want to record generated in the process of learning files.
     custom_metric : object, [default=None]

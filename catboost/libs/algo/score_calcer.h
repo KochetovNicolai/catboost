@@ -54,7 +54,8 @@ TVector<TScoreBin> CalcScore(
     const NCatboostOptions::TCatBoostOptions& fitParams,
     const TSplitCandidate& split,
     int depth,
-    TBucketStatsCache* statsFromPrevTree);
+    TBucketStatsCache* statsFromPrevTree,
+    EMonotonicity monotonicity);
 
 struct TStats3D {
     TVector<TBucketStats> Stats; // [bodyTail & approxDim][leaf][bucket]

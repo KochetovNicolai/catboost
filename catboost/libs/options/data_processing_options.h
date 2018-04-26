@@ -4,6 +4,7 @@
 #include "json_helper.h"
 #include "binarization_options.h"
 #include "restrictions.h"
+#include "enums.h"
 #include <library/grid_creator/binarization.h>
 
 namespace NCatboostOptions {
@@ -11,7 +12,7 @@ namespace NCatboostOptions {
     struct TDataProcessingOptions {
         explicit TDataProcessingOptions(ETaskType type)
             : IgnoredFeatures("ignored_features", TVector<int>())
-            , MonotonicFeatures("monotonic_features", TVector<int>())
+            , MonotonicFeatures("monotonic_features", TVector<EMonotonicity>())
             , HasTimeFlag("has_time", false)
             , FloatFeaturesBinarization("float_features_binarization", TBinarizationOptions(EBorderSelectionType::GreedyLogSum, 128, ENanMode::Min))
             , ClassesCount("classes_count", 0)
@@ -43,7 +44,7 @@ namespace NCatboostOptions {
         }
 
         TOption<TVector<int>> IgnoredFeatures;
-        TOption<TVector<int>> MonotonicFeatures;
+        TOption<TVector<EMonotonicity>> MonotonicFeatures;
         TOption<bool> HasTimeFlag;
         TOption<TBinarizationOptions> FloatFeaturesBinarization;
         TOption<ui32> ClassesCount;

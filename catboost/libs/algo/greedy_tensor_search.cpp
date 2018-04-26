@@ -247,6 +247,8 @@ static void CalcBestScore(const TDataset& learnData,
         TLearnContext* ctx) {
     CB_ENSURE(static_cast<ui32>(ctx->LocalExecutor.GetThreadCount()) == ctx->Params.SystemOptions->NumThreads - 1);
 
+    const auto & monotonicFeatures = ctx->Params.DataProcessingOptions->MonotonicFeatures.Get();
+
     TCandidateList& candList = *candidateList;
     ctx->LocalExecutor.ExecRange([&](int id) {
         auto& candidate = candList[id];
@@ -267,15 +269,22 @@ static void CalcBestScore(const TDataset& learnData,
                 const auto& proj = candidate.Candidates[oneCandidate].SplitCandidate.Ctr.Projection;
                 Y_ASSERT(!fold->GetCtrRef(proj).Feature.empty());
             }
+
+            const auto & splitCandidate = candidate.Candidates[oneCandidate].SplitCandidate;
+            auto monotonicity = EMonotonicity::None;
+            if (0 <= splitCandidate.FeatureIdx && splitCandidate.FeatureIdx < monotonicFeatures.ysize())
+                monotonicity = monotonicFeatures[splitCandidate.FeatureIdx];
+
             allScores[oneCandidate] = GetScores(CalcScore(learnData.AllFeatures,
                                         splitCounts,
                                         fold->GetAllCtrs(),
                                         ctx->SampledDocs,
                                         ctx->SmallestSplitSideDocs,
                                         ctx->Params,
-                                        candidate.Candidates[oneCandidate].SplitCandidate,
+                                        splitCandidate,
                                         currentDepth,
-                                        &ctx->PrevTreeLevelStats));
+                                        &ctx->PrevTreeLevelStats,
+                                        monotonicity));
         }, NPar::TLocalExecutor::TExecRangeParams(0, candidate.Candidates.ysize())
          , NPar::TLocalExecutor::WAIT_COMPLETE);
         if (candidate.Candidates[0].SplitCandidate.Type == ESplitType::OnlineCtr && candidate.ShouldDropCtrAfterCalc) {

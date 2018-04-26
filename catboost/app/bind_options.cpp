@@ -15,7 +15,6 @@ inline static TVector<int> ParseIndicesLine(const TStringBuf indicesLine) {
     return result;
 }
 
-
 inline static ui64 ParseMemorySizeDescription(const TString& memSizeDescription) {
     TString sizeLine = memSizeDescription;
     ui64 sizeMultiplier = 1;
@@ -536,12 +535,12 @@ void ParseCommandLine(int argc, const char* argv[],
     parser.AddLongOption('M', "monotonic-features",
                          "todo")
             .RequiredArgument("INDEXES")
-            .Handler1T<TString>([plainJsonPtr](const TString& indicesLine) {
-                auto ignoredFeatures = ParseIndicesLine(indicesLine);
-                for (int f : ignoredFeatures) {
-                    (*plainJsonPtr)["monotonic_features"].AppendValue(f);
+            .Handler1T<TString>([plainJsonPtr](const TString& monotonicityLine) {
+                for (const auto& monotonicity: StringSplitter(monotonicityLine).Split(',')) {
+                    (*plainJsonPtr)["monotonic_features"].AppendValue(FromString<int>(monotonicity.Token()));
                 }
-            });
+            })
+            .Help("List of comma separated values from {-1, 0, 1} = {Descending, None, Ascending}. I-th value set monotonic constraint for i-th feature. For example: -M -1,0,0,1,0,-1");
 
     parser.AddLongOption("has-time", "Use dataset order as time")
         .NoArgument()

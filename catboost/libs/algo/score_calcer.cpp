@@ -44,42 +44,41 @@ struct TStatsIndexer {
 
 template<typename TIsPlainMode>
 static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStatsIndexer& indexer, ESplitType splitType,
-                           float l2Regularizer, TIsPlainMode isPlainMode, TVector<TScoreBin>* scoreBin, int monotonicity) {
+                           float l2Regularizer, TIsPlainMode isPlainMode, TVector<TScoreBin>* scoreBin, EMonotonicity monotonicity) {
+
+    const bool useMonotonicConstraints =
+            monotonicity != EMonotonicity::None && !isPlainMode && splitType == ESplitType::FloatFeature;
+
+    auto isViolatesMonotonicConstraints = [monotonicity](double trueAvrg, double falseAvrg) {
+        switch (monotonicity) {
+            case EMonotonicity::Ascending:
+                return falseAvrg > trueAvrg;
+            case EMonotonicity::Descending:
+                return falseAvrg < trueAvrg;
+            default:
+                return false;
+        }
+    };
+
     for (int leaf = 0; leaf < leafCount; ++leaf) {
-        TBucketStats allStats{0, 0, 0, 0, 0};
+        TBucketStats allStats{0, 0, 0, 0};
         for (int bucket = 0; bucket < indexer.BucketCount; ++bucket) {
             const TBucketStats& leafStats = stats[indexer.GetIndex(leaf, bucket)];
             allStats.Add(leafStats);
         }
-        TBucketStats trueStats{0, 0, 0, 0, 0};
-        TBucketStats falseStats{0, 0, 0, 0, 0};
+        TBucketStats trueStats{0, 0, 0, 0};
+        TBucketStats falseStats{0, 0, 0, 0};
 
-        double allAvg = isPlainMode ? CalcAverage(allStats.SumWeightedDelta, allStats.SumWeight, l2Regularizer)
-                                    : CalcAverage(allStats.SumDelta, allStats.Count, l2Regularizer);
-        double no_split_dp = CountDp(allAvg, allStats);
-        double no_split_d2 = CountD2(allAvg, allStats);
+        double noSplitDp = 0;
+        double noSplitD2 = 0;
 
-        //if (monotonicity != 0)
-        //    std::cerr << "mon: " << monotonicity << std::endl;
-
-        auto compare = [monotonicity](double avg_true, double avg_false, double true_target, double false_target)
-        {
-            //std::cerr << '-' << true_target << ' ' << false_target << ' ' << true_target + false_target << ' ' <<  -monotonicity << ' ' << (-monotonicity < 0)
-            //          << ' ' << (true_target > false_target) << ' ' << (-monotonicity < 0 && true_target > false_target) << std::endl;
-            if (-monotonicity > 0 && true_target < false_target)
-            {
-                //std::cerr << "+1 " << avg_true << ' ' << avg_false << ' ' << true_target << ' ' << false_target << std::endl;
-                return true;
-            }
-            if (-monotonicity < 0 && (avg_true > avg_false || true_target > false_target))
-            {
-                //if (true_target < false_target)
-                //std::cerr << "-1 " << avg_true << ' ' << avg_false << ' ' << true_target << ' ' << false_target << std::endl;
-                return true;
-            }
-
-            return false;
-        };
+        if (useMonotonicConstraints) {
+            /// In case of monotonic constraint was violated by split we calculate statistics as if all docs weren't splitted at all.
+            double allAvg = isPlainMode ? CalcAverage(allStats.SumWeightedDelta, allStats.SumWeight, l2Regularizer)
+                                        : CalcAverage(allStats.SumDelta, allStats.Count, l2Regularizer);
+            noSplitDp = CountDp(allAvg, allStats);
+            noSplitD2 = CountD2(allAvg, allStats);
+        }
 
         if (splitType == ESplitType::OnlineCtr || splitType == ESplitType::FloatFeature) {
             trueStats = allStats;
@@ -95,12 +94,9 @@ static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStat
                     falseAvrg = CalcAverage(falseStats.SumDelta, falseStats.Count, l2Regularizer);
                 }
 
-                //std::cerr << trueStats.Count << ' ' << falseStats.Count << ' ' << trueStats.Count + falseStats.Count << std::endl;
-                //std::cerr << trueStats.SumTarget << ' ' << falseStats.SumTarget << ' ' << trueStats.SumTarget + falseStats.SumTarget << std::endl;
-
-                if (compare(trueAvrg, falseAvrg, trueStats.SumTarget, falseStats.SumTarget)) { //compare(trueStats.SumTarget, falseStats.SumTarget)) {
-                    (*scoreBin)[splitIdx].DP += no_split_dp;
-                    (*scoreBin)[splitIdx].D2 += no_split_d2;
+                if (useMonotonicConstraints && isViolatesMonotonicConstraints(trueAvrg, falseAvrg)) {
+                    (*scoreBin)[splitIdx].DP += noSplitDp;
+                    (*scoreBin)[splitIdx].D2 += noSplitD2;
                 } else {
                     (*scoreBin)[splitIdx].DP += CountDp(trueAvrg, trueStats) + CountDp(falseAvrg, falseStats);
                     (*scoreBin)[splitIdx].D2 += CountD2(trueAvrg, trueStats) + CountD2(falseAvrg, falseStats);
@@ -123,13 +119,9 @@ static void UpdateScoreBin(const TBucketStats* stats, int leafCount, const TStat
                     trueAvrg = CalcAverage(trueStats.SumDelta, trueStats.Count, l2Regularizer);
                     falseAvrg = CalcAverage(falseStats.SumDelta, falseStats.Count, l2Regularizer);
                 }
-                if (compare(trueAvrg, falseAvrg, trueStats.SumTarget, falseStats.SumTarget)) { //compare(trueStats.SumTarget, falseStats.SumTarget)) {
-                    (*scoreBin)[splitIdx].DP += no_split_dp;
-                    (*scoreBin)[splitIdx].D2 += no_split_d2;
-                } else {
-                    (*scoreBin)[splitIdx].DP += CountDp(trueAvrg, trueStats) + CountDp(falseAvrg, falseStats);
-                    (*scoreBin)[splitIdx].D2 += CountD2(trueAvrg, trueStats) + CountD2(falseAvrg, falseStats);
-                }
+
+                (*scoreBin)[splitIdx].DP += CountDp(trueAvrg, trueStats) + CountDp(falseAvrg, falseStats);
+                (*scoreBin)[splitIdx].D2 += CountD2(trueAvrg, trueStats) + CountD2(falseAvrg, falseStats);
             }
         }
     }
@@ -305,7 +297,7 @@ static TVector<TScoreBin> CalcScoreImpl(const TIsCaching& isCaching,
         int depth,
         int splitStatsCount,
         TBucketStats* splitStats,
-        int monotonicity) {
+        EMonotonicity monotonicity) {
     Y_ASSERT(!isCaching || depth > 0);
     const int approxDimension = fold.GetApproxDimension();
     const int leafCount = 1 << depth;
@@ -333,19 +325,11 @@ TVector<TScoreBin> CalcScore(const TAllFeatures& af,
                           const NCatboostOptions::TCatBoostOptions& fitParams,
                           const TSplitCandidate& split,
                           int depth,
-                          TBucketStatsCache* statsFromPrevTree) {
+                          TBucketStatsCache* statsFromPrevTree,
+                          EMonotonicity monotonicity) {
     const int splitCount = GetSplitCount(splitsCount, af.OneHotValues, split);
     const TStatsIndexer indexer(splitCount + 1);
     const int bucketIndexBits = GetValueBitCount(GetSplitCount(splitsCount, af.OneHotValues, split) + 1) + depth + 1;
-
-    const auto & monotonic_features = fitParams.DataProcessingOptions->MonotonicFeatures.Get();
-    THashSet<int> monotonic_set(monotonic_features.begin(), monotonic_features.end());
-    int monotonicity = monotonic_set.has(split.FeatureIdx) ? 1 : 0;
-
-//    std::cerr << "Monotonic: ";
-//    for (auto & f : monotonic_features)
-//        std::cerr << " " << f;
-//    std::cerr << std::endl;
 
     decltype(auto) SelectCalcScoreImpl = [&] (auto isCaching, const TCalcScoreFold& fold, int splitStatsCount, auto* splitStats) {
         const bool isPlainMode = IsPlainMode(fitParams.BoostingOptions->BoostingType);
@@ -450,9 +434,10 @@ TVector<TScoreBin> GetScoreBins(const TStats3D& stats, ESplitType splitType, int
     const TStatsIndexer indexer(bucketCount);
     TVector<TScoreBin> scoreBin(bucketCount);
 
-    const auto & monotonic_features = fitParams.DataProcessingOptions->MonotonicFeatures.Get();
-    THashSet<int> monotonic_set(monotonic_features.begin(), monotonic_features.end());
-    int monotonicity = 1; //monotonic_set.has(featureIdx) ? 1 : 0;
+    const auto & monotonicFeatures = fitParams.DataProcessingOptions->MonotonicFeatures.Get();
+    auto monotonicity = EMonotonicity::None;
+    if (0 <= featureIdx && featureIdx < monotonicFeatures.ysize())
+        monotonicity = monotonicFeatures[featureIdx];
 
     for (int statsIdx = 0; statsIdx * splitStatsCount < bucketStats.ysize(); ++statsIdx) {
         const TBucketStats* stats = GetDataPtr(bucketStats) + statsIdx * splitStatsCount;
