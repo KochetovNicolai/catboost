@@ -284,7 +284,7 @@ void UpdateTreeLeaves(const TDataset& learnData,
             &indices
     );
 
-    MonotonizeLeaveValues(&newValues, splitTree, treeStats, ctx, monotonicFeatures);
+    MonotonizeLeaveValues<TError>(&newValues, splitTree, treeStats, ctx, monotonicFeatures);
 
     const double learningRate = ctx->Params.BoostingOptions->LearningRate;
 
