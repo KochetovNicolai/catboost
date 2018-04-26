@@ -246,9 +246,9 @@ inline static void CalcStatsKernel(const TIsCaching& isCaching,
                             TBucketStats* stats) {
     Y_ASSERT(!isCaching || depth > 0);
     if (isCaching) {
-        Fill(stats + indexer.CalcSize(depth - 1), stats + indexer.CalcSize(depth), TBucketStats{0, 0, 0, 0, 0});
+        Fill(stats + indexer.CalcSize(depth - 1), stats + indexer.CalcSize(depth), TBucketStats{0, 0, 0, 0});
     } else {
-        Fill(stats, stats + indexer.CalcSize(depth), TBucketStats{0, 0, 0, 0, 0});
+        Fill(stats, stats + indexer.CalcSize(depth), TBucketStats{0, 0, 0, 0});
     }
 
     const bool hasPairwiseWeights = !bt.PairwiseWeights.empty();
