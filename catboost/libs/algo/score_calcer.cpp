@@ -216,7 +216,6 @@ static void UpdateWeighted(const TVector<TFullIndexType>& singleIdx,
         TBucketStats& leafStats = stats[singleIdx[doc]];
         leafStats.SumWeightedDelta += weightedDer[doc];
         leafStats.SumWeight += sampleWeights[doc];
-        leafStats.SumTarget += target[doc];
     }
 }
 
