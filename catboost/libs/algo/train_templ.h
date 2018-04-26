@@ -81,6 +81,8 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
         if (0 <= split.FeatureIdx && split.FeatureIdx < monotonicFeatures.ysize()
             && monotonicFeatures[split.FeatureIdx] != EMonotonicity::None)
             ++numMonotonicSplits;
+        else
+            break;
     }
 
     if (numMonotonicSplits == 0)
