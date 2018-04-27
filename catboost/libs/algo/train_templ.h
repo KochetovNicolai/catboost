@@ -134,10 +134,10 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
 
         std::cerr << "Left values: ";
         for (auto & st : orderedLeftValues)
-            std::cerr << '(' << st.velue << ", " << st.weight << ") ";
+            std::cerr << '(' << st.value << ", " << st.weight << ") ";
         std::cerr << "\nRight values: ";
         for (auto & st : orderedRightValues)
-            std::cerr << '(' << st.velue << ", " << st.weight << ") ";
+            std::cerr << '(' << st.value << ", " << st.weight << ") ";
 
 
         /// Find optimal threshold:
