@@ -132,6 +132,14 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
         SortBy(orderedLeftValues, [monDirection](const TLeaveStat & stat) { return stat.value; });
         SortBy(orderedRightValues, [monDirection](const TLeaveStat & stat) { return stat.value; });
 
+        std::cerr << "Left values: ";
+        for (auto & st : orderedLeftValues)
+            std::cerr << '(' << st.velue << ", " << st.weight << ") ";
+        std::cerr << "\nRight values: ";
+        for (auto & st : orderedRightValues)
+            std::cerr << '(' << st.velue << ", " << st.weight << ") ";
+
+
         /// Find optimal threshold:
         /// \sum{(left[i].value - threshold) * left[i].weight * I[left[i].value > threshold]} +
         /// \sum{(threshold - right[i].value) * right[i].weight * I[threshold > right[i].value]} -> min
@@ -175,6 +183,8 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
                 break;
             }
         }
+
+        std::cerr << "\nSelected th: " << threshold << std::endl;
 
         for (size_t i = 0; i < numLeaves; ++i) {
             if (leftSubtreeLeaves[i] * monDirection > threshold * monDirection)
