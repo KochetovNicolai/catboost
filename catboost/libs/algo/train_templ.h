@@ -141,56 +141,77 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
 
 
         /// Find optimal threshold:
-        /// \sum{(left[i].value - threshold) * left[i].weight * I[left[i].value > threshold]} +
-        /// \sum{(threshold - right[i].value) * right[i].weight * I[threshold > right[i].value]} -> min
+        /// \sum{(left[i].value - threshold)^2 * left[i].weight * I[left[i].value > threshold]} +
+        /// \sum{(threshold - right[i].value)^2 * right[i].weight * I[threshold > right[i].value]} -> min
 
         double threshold = std::min(orderedLeftValues[0].value, orderedRightValues[0].value);
-        double sumLeftWeight = 0;
-        double sumRightWeight = 0;
-        double sumViolation = 0;
+
+        struct TLossStat {
+            double TotalWeight = 0;
+            double L1 = 0;
+            double L2 = 0;
+
+            double getScore(double delta) const {
+                return L2 + delta * delta * TotalWeight + 2.0 * delta * L1;
+            }
+
+            void AddShift(double delta) {
+                L2 = getScore(delta);
+                L1 += delta * TotalWeight;
+            }
+        };
+
+        TLossStat leftLoss;
+        TLossStat rightLoss;
+
         for (TLeaveStat & stat : orderedLeftValues) {
-            sumViolation += stat.weight * (stat.value - threshold);
-            sumLeftWeight += stat.weight;
+            double delta = (stat.value - threshold);
+            leftLoss.L1 += stat.weight * delta;
+            leftLoss.L2 += stat.weight * delta * delta;
         }
 
         int leftIdx = 0;
         int rightIdx = 0;
+        double bestThreshold = threshold;
+        double bestScore = leftLoss.L2;
 
         while (leftIdx < numLeaves && rightIdx < numLeaves) {
-            double prevViolation = sumViolation;
-            double prevThreshold = threshold;
 
-            if (leftIdx < numLeaves && (rightIdx >= numLeaves ||
-                                        orderedLeftValues[leftIdx].value < orderedRightValues[rightIdx].value)) {
-                double delta = orderedLeftValues[leftIdx].value - threshold;
-                sumViolation -= sumLeftWeight * delta;
-                sumViolation += sumRightWeight * delta;
-                threshold = orderedLeftValues[leftIdx].value;
-                sumLeftWeight -= orderedLeftValues[leftIdx].weight;
-                ++leftIdx;
-            } else {
-                double delta = orderedRightValues[rightIdx].value - threshold;
-                sumViolation -= sumLeftWeight * delta;
-                sumViolation += sumRightWeight * delta;
-                threshold = orderedRightValues[rightIdx].value;
-                sumRightWeight += orderedRightValues[rightIdx].weight;
-                ++rightIdx;
+            bool nextFromLeft = rightIdx >= numLeaves || (leftIdx < numLeaves
+                                                          && orderedLeftValues[leftIdx].value < orderedRightValues[rightIdx].value);
+            double nextThreshold = nextFromLeft ? orderedLeftValues[leftIdx].value
+                                                : orderedRightValues[rightIdx].value;
+
+            double delta = nextThreshold - threshold;
+            double weight = leftLoss.TotalWeight + rightLoss.TotalWeight;
+            double alpha = (rightLoss.L1 - leftLoss.L1 + rightLoss.TotalWeight) / std::max<double>(1, weight);
+            alpha = std::max<double>(0, std::min<double>(1, alpha));
+            double score = leftLoss.getScore(-alpha * delta) + rightLoss.getScore((1 - alpha) * delta);
+
+            if (score < bestScore) {
+                score = bestScore;
+                bestThreshold = threshold + alpha * delta;
             }
 
-            if (sumViolation > prevViolation)
-            {
-                threshold = prevThreshold;
-                break;
+            leftLoss.AddShift(-delta);
+            rightLoss.AddShift(delta);
+
+            if (nextFromLeft) {
+                leftLoss.TotalWeight -= orderedLeftValues[leftIdx].weight;
+                ++leftIdx;
+            } else {
+                rightLoss.TotalWeight += orderedRightValues[rightIdx].weight;
+                ++rightIdx;
             }
         }
 
-        std::cerr << "\nSelected th: " << threshold << std::endl;
+        std::cerr << "\nSelected th: " << bestThreshold << std::endl;
 
         for (size_t i = 0; i < numLeaves; ++i) {
-            if (leftSubtreeLeaves[i] * monDirection > threshold * monDirection)
-                leftSubtreeLeaves[i] = threshold;
-            if (rightSubtreeLeaves[i] * monDirection < threshold * monDirection)
-                rightSubtreeLeaves[i] = threshold;
+            if (leftSubtreeLeaves[i] * monDirection > bestThreshold * monDirection)
+                leftSubtreeLeaves[i] = bestThreshold;
+            if (rightSubtreeLeaves[i] * monDirection < bestThreshold * monDirection)
+                rightSubtreeLeaves[i] = bestThreshold;
         }
     };
 
