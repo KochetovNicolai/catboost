@@ -166,6 +166,7 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
                 sumViolation += sumRightWeight * delta;
                 threshold = orderedRightValues[rightIdx].value;
                 sumRightWeight += orderedRightValues[rightIdx].weight;
+                ++rightIdx;
             }
 
             if (sumViolation > prevViolation)
