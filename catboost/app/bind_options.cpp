@@ -537,7 +537,7 @@ void ParseCommandLine(int argc, const char* argv[],
             .RequiredArgument("INDEXES")
             .Handler1T<TString>([plainJsonPtr](const TString& monotonicityLine) {
                 for (const auto& monotonicity: StringSplitter(monotonicityLine).Split(',')) {
-                    (*plainJsonPtr)["monotonic_features"].AppendValue(monotonicity.Token());
+                    (*plainJsonPtr)["monotonic_features"].AppendValue(FromString<int>(monotonicity.Token()));
                 }
             })
             .Help("List of comma separated values from {-1, 0, 1} = {Descending, None, Ascending}. I-th value set monotonic constraint for i-th feature. For example: -M -1,0,0,1,0,-1");

@@ -2,6 +2,7 @@
 
 #include "option.h"
 #include "unimplemented_aware_option.h"
+#include "enums.h"
 #include <library/json/json_value.h>
 #include <util/generic/string.h>
 #include <util/generic/set.h>
@@ -30,6 +31,21 @@ namespace NCatboostOptions {
 
         static void Write(const T& value, NJson::TJsonValue* dst) {
             (*dst) = ToString<T>(value);
+        }
+    };
+
+    template <>
+    class TJsonFieldHelper<EMonotonicity, true> {
+    public:
+        static void Read(const NJson::TJsonValue& src, EMonotonicity* dst) {
+            auto monotonicity = src.GetIntegerSafe();
+            if (monotonicity < -1 || monotonicity > 1)
+                ythrow yexception() << "Value " << monotonicity << " is not valid for monotonicity. Valid options are: -1, 0, 1 \n";
+            (*dst) = static_cast<EMonotonicity>(monotonicity);
+        }
+
+        static void Write(const EMonotonicity & value, NJson::TJsonValue* dst) {
+            (*dst) = static_cast<int>(value);
         }
     };
 
