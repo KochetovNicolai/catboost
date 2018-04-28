@@ -190,8 +190,8 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
 
         while (leftIdx < numLeft || rightIdx < numRight) {
 
-            bool nextFromLeft = rightIdx >= numLeft
-                                || (leftIdx < numRight && leftStats[leftIdx].Value < rightStats[rightIdx].Value);
+            bool nextFromLeft = rightIdx >= numRight
+                                || (leftIdx < numLeft && leftStats[leftIdx].Value < rightStats[rightIdx].Value);
             double nextThreshold = nextFromLeft ? leftStats[leftIdx].Value
                                                 : rightStats[rightIdx].Value;
 
