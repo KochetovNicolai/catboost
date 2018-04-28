@@ -116,17 +116,17 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
         return hasLeft && hasRight && leftExtremum * monDirection > rightExtremum * monDirection;
     };
 
+    struct TLeaveStat {
+        double Value;
+        double Weight;
+    };
+
     auto monotonizeSplit = [&](double* leftLeaves, double* rightLeaves,
                                const double* leftWeights, const double* rightWeights,
                                int numLeaves, int monDirection) -> void {
 
         if (!isSplitViolatesMonotonicity(leftLeaves, rightLeaves, leftWeights, rightWeights, numLeaves, monDirection))
             return;
-
-        struct TLeaveStat {
-            double Value;
-            double Weight;
-        };
 
         TVector<TLeaveStat> leftStats;
         TVector<TLeaveStat> rightStats;
