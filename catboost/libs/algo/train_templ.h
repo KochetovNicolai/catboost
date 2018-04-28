@@ -185,7 +185,7 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
 
             double delta = nextThreshold - threshold;
             double weight = leftLoss.TotalWeight + rightLoss.TotalWeight;
-            double alpha = (rightLoss.L1 - leftLoss.L1 + rightLoss.TotalWeight) / std::max<double>(1, weight);
+            double alpha = (leftLoss.L1 - rightLoss.L1) / std::max<double>(1, weight);
             alpha = std::max<double>(0, std::min<double>(1, alpha));
             double score = leftLoss.getScore(-alpha * delta) + rightLoss.getScore(alpha * delta);
 
