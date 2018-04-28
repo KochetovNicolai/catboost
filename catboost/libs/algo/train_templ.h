@@ -557,17 +557,17 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
         profile.AddOperation("Update final approxes");
         CheckInterrupted(); // check after long-lasting operation
 
-        auto numAddedTrees = ctx->LearnProgress.TreeStruct.ysize();
-        if (!monotonicFeatures.empty() && numAddedTrees > 1) {
-            auto randTreeIndex = ctx->Rand.GenRand() % numAddedTrees;
-            const auto & randTree = ctx->LearnProgress.TreeStruct[randTreeIndex];
-            auto & randTreeValues =  ctx->LearnProgress.LeafValues[randTreeIndex];
-            const auto & randTreeStats = ctx->LearnProgress.TreeStats[randTreeIndex];
-            UpdateTreeLeaves(learnData, testData, error, randTree, ctx, &randTreeValues, randTreeStats, monotonicFeatures);
-
-            profile.AddOperation("Update random tree leaves");
-            CheckInterrupted(); // check after long-lasting operation
-        }
+//        auto numAddedTrees = ctx->LearnProgress.TreeStruct.ysize();
+//        if (!monotonicFeatures.empty() && numAddedTrees > 1) {
+//            auto randTreeIndex = ctx->Rand.GenRand() % numAddedTrees;
+//            const auto & randTree = ctx->LearnProgress.TreeStruct[randTreeIndex];
+//            auto & randTreeValues =  ctx->LearnProgress.LeafValues[randTreeIndex];
+//            const auto & randTreeStats = ctx->LearnProgress.TreeStats[randTreeIndex];
+//            UpdateTreeLeaves(learnData, testData, error, randTree, ctx, &randTreeValues, randTreeStats, monotonicFeatures);
+//
+//            profile.AddOperation("Update random tree leaves");
+//            CheckInterrupted(); // check after long-lasting operation
+//        }
 
         std::cerr << "Result Leaves:" << std::endl;
         for (auto & vals : treeValues)
