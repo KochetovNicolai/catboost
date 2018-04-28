@@ -133,9 +133,9 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
 
         for (size_t i = 0; i < numLeaves; ++i) {
             if (leftWeights[i] != 0)
-                leftStats[i].emplace_back(leftLeaves[i] * monDirection, leftWeights[i]);
+                leftStats[i].push_back(leftLeaves[i] * monDirection, leftWeights[i]);
             if (rightWeights[i] != 0)
-                rightStats[i].emplace_back(rightLeaves[i] * monDirection, rightWeights[i]);
+                rightStats[i].push_back(rightLeaves[i] * monDirection, rightWeights[i]);
         }
 
         SortBy(leftStats, [monDirection](const TLeaveStat & stat) { return stat.Value; });
