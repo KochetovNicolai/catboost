@@ -189,7 +189,7 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             double score = leftLoss.getScore(-alpha * delta) + rightLoss.getScore((1 - alpha) * delta);
 
             if (score < bestScore) {
-                score = bestScore;
+                bestScore = score;
                 bestThreshold = threshold + alpha * delta;
             }
 
