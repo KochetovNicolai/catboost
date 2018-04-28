@@ -217,6 +217,8 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
                 rightLoss.TotalWeight += rightStats[rightIdx].Weight;
                 ++rightIdx;
             }
+
+            threshold = nextThreshold;
         }
 
         std::cerr << "Selected th: " << bestThreshold << '\n' << std::endl;
