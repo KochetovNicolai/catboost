@@ -559,7 +559,7 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
 
         auto numAddedTrees = ctx->LearnProgress.TreeStruct.ysize();
         if (!monotonicFeatures.empty() && numAddedTrees > 1) {
-            for (int i = 0; i < 10; ++i)
+            for (int i = 0; i < 0.1 * numAddedTrees; ++i)
             {
                 auto randTreeIndex = ctx->Rand.GenRand() % numAddedTrees;
                 const auto & randTree = ctx->LearnProgress.TreeStruct[randTreeIndex];
