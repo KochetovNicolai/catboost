@@ -128,12 +128,14 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             double Weight;
         };
 
-        TVector<TLeaveStat> leftStats(numLeaves);
-        TVector<TLeaveStat> rightStats(numLeaves);
+        TVector<TLeaveStat> leftStats;
+        TVector<TLeaveStat> rightStats;
 
         for (size_t i = 0; i < numLeaves; ++i) {
-            leftStats[i] = {leftLeaves[i] * monDirection, leftWeights[i]};
-            rightStats[i] = {rightLeaves[i] * monDirection, rightWeights[i]};
+            if (leftWeights[i] != 0)
+                leftStats[i].emplace_back(leftLeaves[i] * monDirection, leftWeights[i]);
+            if (rightWeights[i] != 0)
+                rightStats[i].emplace_back(rightLeaves[i] * monDirection, rightWeights[i]);
         }
 
         SortBy(leftStats, [monDirection](const TLeaveStat & stat) { return stat.Value; });
