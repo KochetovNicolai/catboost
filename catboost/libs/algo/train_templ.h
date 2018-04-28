@@ -93,27 +93,34 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
     for (int i = numSplits - numMonotonicSplits; i < numSplits; ++i)
         monotonicity.push_back(monotonicFeatures[splits[i].FeatureIdx]);
 
-    auto isSplitViolatesMonotonicity = [](const double* leftSubtreeLeaves, const double* rightSubtreeLeaves,
+    auto isSplitViolatesMonotonicity = [](const double* leftLeaves, const double* rightLeaves,
+                                          const double* leftWeights, const double* rightWeights,
                                           int numLeaves, int monDirection)
     {
-        double leftExtremum = leftSubtreeLeaves[0];
-        double rightExtremum = rightSubtreeLeaves[0];
-        for (int i = 1; i < numLeaves; ++i)
+        double leftExtremum = 0;
+        double rightExtremum = 0;
+        bool hasLeft = false;
+        bool hasRight = false;
+        for (int i = 0; i < numLeaves; ++i)
         {
-            if (leftExtremum * monDirection < leftSubtreeLeaves[i] * monDirection)
-                leftExtremum = leftSubtreeLeaves[i];
-            if (rightExtremum * monDirection > rightSubtreeLeaves[i] * monDirection)
-                rightExtremum = rightSubtreeLeaves[i];
+            if (leftWeights[i] != 0 && (!hasLeft || leftExtremum * monDirection < leftLeaves[i] * monDirection)) {
+                leftExtremum = leftLeaves[i];
+                hasLeft = true;
+            }
+            if (rightWeights[i] != 0 && (!hasRight || rightExtremum * monDirection > rightLeaves[i] * monDirection)) {
+                rightExtremum = rightLeaves[i];
+                hasRight = true;
+            }
         }
 
-        return leftExtremum * monDirection > rightExtremum * monDirection;
+        return hasLeft && hasRight && leftExtremum * monDirection > rightExtremum * monDirection;
     };
 
-    auto monotonizeSplit = [&](double* leftSubtreeLeaves, double* rightSubtreeLeaves,
-                               const double* leftSubtreeWeights, const double* rightSubtreeWeights,
+    auto monotonizeSplit = [&](double* leftLeaves, double* rightLeaves,
+                               const double* leftWeights, const double* rightWeights,
                                int numLeaves, int monDirection) -> void {
 
-        if (!isSplitViolatesMonotonicity(leftSubtreeLeaves, rightSubtreeLeaves, numLeaves, monDirection))
+        if (!isSplitViolatesMonotonicity(leftLeaves, rightLeaves, leftWeights, rightWeights, numLeaves, monDirection))
             return;
 
         struct TLeaveStat {
@@ -121,30 +128,30 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             double Weight;
         };
 
-        TVector<TLeaveStat> orderedLeftValues(numLeaves);
-        TVector<TLeaveStat> orderedRightValues(numLeaves);
+        TVector<TLeaveStat> leftStats(numLeaves);
+        TVector<TLeaveStat> rightStats(numLeaves);
 
         for (size_t i = 0; i < numLeaves; ++i) {
-            orderedLeftValues[i] = {leftSubtreeLeaves[i] * monDirection, leftSubtreeWeights[i]};
-            orderedRightValues[i] = {rightSubtreeLeaves[i] * monDirection, rightSubtreeWeights[i]};
+            leftStats[i] = {leftLeaves[i] * monDirection, leftWeights[i]};
+            rightStats[i] = {rightLeaves[i] * monDirection, rightWeights[i]};
         }
 
-        SortBy(orderedLeftValues, [monDirection](const TLeaveStat & stat) { return stat.Value; });
-        SortBy(orderedRightValues, [monDirection](const TLeaveStat & stat) { return stat.Value; });
+        SortBy(leftStats, [monDirection](const TLeaveStat & stat) { return stat.Value; });
+        SortBy(rightStats, [monDirection](const TLeaveStat & stat) { return stat.Value; });
 
         std::cerr << "Left values: ";
-        for (auto & st : orderedLeftValues)
+        for (auto & st : leftStats)
             std::cerr << '(' << st.Value << ", " << st.Weight << ") ";
         std::cerr << "\nRight values: ";
-        for (auto & st : orderedRightValues)
+        for (auto & st : rightStats)
             std::cerr << '(' << st.Value << ", " << st.Weight << ") ";
-
+        std::cerr << std::endl;
 
         /// Find optimal threshold:
         /// \sum{(left[i].value - threshold)^2 * left[i].weight * I[left[i].value > threshold]} +
         /// \sum{(threshold - right[i].value)^2 * right[i].weight * I[threshold > right[i].value]} -> min
 
-        double threshold = std::min(orderedLeftValues[0].Value, orderedRightValues[0].Value);
+        double threshold = std::min(leftStats[0].Value, rightStats[0].Value);
 
         struct TLossStat {
             double TotalWeight = 0;
@@ -164,7 +171,7 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
         TLossStat leftLoss;
         TLossStat rightLoss;
 
-        for (TLeaveStat & stat : orderedLeftValues) {
+        for (TLeaveStat & stat : leftStats) {
             double delta = (stat.Value - threshold);
             leftLoss.TotalWeight += stat.Weight;
             leftLoss.L1 += stat.Weight * delta;
@@ -178,10 +185,10 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
 
         while (leftIdx < numLeaves || rightIdx < numLeaves) {
 
-            bool nextFromLeft = rightIdx >= numLeaves || (leftIdx < numLeaves
-                                                          && orderedLeftValues[leftIdx].Value < orderedRightValues[rightIdx].Value);
-            double nextThreshold = nextFromLeft ? orderedLeftValues[leftIdx].Value
-                                                : orderedRightValues[rightIdx].Value;
+            bool nextFromLeft = rightIdx >= numLeaves
+                                || (leftIdx < numLeaves && leftStats[leftIdx].Value < rightStats[rightIdx].Value);
+            double nextThreshold = nextFromLeft ? leftStats[leftIdx].Value
+                                                : rightStats[rightIdx].Value;
 
             double delta = nextThreshold - threshold;
             double weight = leftLoss.TotalWeight + rightLoss.TotalWeight;
@@ -189,8 +196,8 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             alpha = std::max<double>(0, std::min<double>(1, alpha));
             double score = leftLoss.getScore(-alpha * delta) + rightLoss.getScore(alpha * delta);
 
-            std::cerr << leftIdx << ' ' << rightIdx << ' ' << alpha << ' ' << leftLoss.getScore(-alpha * delta) << ' '
-                      << rightLoss.getScore(alpha * delta) <<  ' ' << score << std::endl;
+            std::cerr << '\n' << leftIdx << '\t' << rightIdx << '\t' << alpha << '\t' << leftLoss.getScore(-alpha * delta) << '\t'
+                      << rightLoss.getScore(alpha * delta) <<  '\t' << score << std::endl;
 
             if (score < bestScore) {
                 bestScore = score;
@@ -201,21 +208,21 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             rightLoss.AddShift(delta);
 
             if (nextFromLeft) {
-                leftLoss.TotalWeight -= orderedLeftValues[leftIdx].Weight;
+                leftLoss.TotalWeight -= leftStats[leftIdx].Weight;
                 ++leftIdx;
             } else {
-                rightLoss.TotalWeight += orderedRightValues[rightIdx].Weight;
+                rightLoss.TotalWeight += rightStats[rightIdx].Weight;
                 ++rightIdx;
             }
         }
 
-        std::cerr << "\nSelected th: " << bestThreshold << std::endl;
+        std::cerr << "Selected th: " << bestThreshold << '\n' << std::endl;
 
         for (size_t i = 0; i < numLeaves; ++i) {
-            if (leftSubtreeLeaves[i] * monDirection > bestThreshold * monDirection)
-                leftSubtreeLeaves[i] = bestThreshold;
-            if (rightSubtreeLeaves[i] * monDirection < bestThreshold * monDirection)
-                rightSubtreeLeaves[i] = bestThreshold;
+            if (leftLeaves[i] * monDirection > bestThreshold * monDirection)
+                leftLeaves[i] = bestThreshold;
+            if (rightLeaves[i] * monDirection < bestThreshold * monDirection)
+                rightLeaves[i] = bestThreshold;
         }
     };
 
