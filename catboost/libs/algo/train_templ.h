@@ -486,7 +486,7 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
     int randTreeIndex = -1;
     TVector<TVector<double>> * prevTreeLeaves = nullptr;
 
-    if (numPrevAddedTrees && (ctx->Rand.GenRand() % 10 == 0) ) {
+    if (numPrevAddedTrees && (ctx->Rand.GenRand() % 100 < 50) ) {
         randTreeIndex = ctx->Rand.GenRand() % numPrevAddedTrees;
         bestSplitTree = ctx->LearnProgress.TreeStruct[randTreeIndex];
         prevTreeLeaves = &ctx->LearnProgress.LeafValues[randTreeIndex];
