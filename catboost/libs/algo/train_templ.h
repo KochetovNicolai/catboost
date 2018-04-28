@@ -197,7 +197,7 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             double score = leftLoss.getScore(-alpha * delta) + rightLoss.getScore(alpha * delta);
 
             std::cerr << '\n' << leftIdx << '\t' << rightIdx << '\t' << alpha << '\t' << leftLoss.getScore(-alpha * delta) << '\t'
-                      << rightLoss.getScore(alpha * delta) <<  '\t' << score << std::endl;
+                      << rightLoss.getScore(alpha * delta) <<  '\t' << score << '\t' <<leftLoss.L2 << '\t' << rightLoss.L2 << std::endl;
 
             if (score < bestScore) {
                 bestScore = score;
