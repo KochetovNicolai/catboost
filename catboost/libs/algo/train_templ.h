@@ -117,8 +117,8 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             return;
 
         struct TLeaveStat {
-            double value;
-            double weight;
+            double Value;
+            double Weight;
         };
 
         TVector<TLeaveStat> orderedLeftValues(numLeaves);
@@ -129,22 +129,22 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             orderedRightValues[i] = {rightSubtreeLeaves[i] * monDirection, rightSubtreeWeights[i]};
         }
 
-        SortBy(orderedLeftValues, [monDirection](const TLeaveStat & stat) { return stat.value; });
-        SortBy(orderedRightValues, [monDirection](const TLeaveStat & stat) { return stat.value; });
+        SortBy(orderedLeftValues, [monDirection](const TLeaveStat & stat) { return stat.Value; });
+        SortBy(orderedRightValues, [monDirection](const TLeaveStat & stat) { return stat.Value; });
 
         std::cerr << "Left values: ";
         for (auto & st : orderedLeftValues)
-            std::cerr << '(' << st.value << ", " << st.weight << ") ";
+            std::cerr << '(' << st.Value << ", " << st.Weight << ") ";
         std::cerr << "\nRight values: ";
         for (auto & st : orderedRightValues)
-            std::cerr << '(' << st.value << ", " << st.weight << ") ";
+            std::cerr << '(' << st.Value << ", " << st.Weight << ") ";
 
 
         /// Find optimal threshold:
         /// \sum{(left[i].value - threshold)^2 * left[i].weight * I[left[i].value > threshold]} +
         /// \sum{(threshold - right[i].value)^2 * right[i].weight * I[threshold > right[i].value]} -> min
 
-        double threshold = std::min(orderedLeftValues[0].value, orderedRightValues[0].value);
+        double threshold = std::min(orderedLeftValues[0].Value, orderedRightValues[0].Value);
 
         struct TLossStat {
             double TotalWeight = 0;
@@ -165,9 +165,10 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
         TLossStat rightLoss;
 
         for (TLeaveStat & stat : orderedLeftValues) {
-            double delta = (stat.value - threshold);
-            leftLoss.L1 += stat.weight * delta;
-            leftLoss.L2 += stat.weight * delta * delta;
+            double delta = (stat.Value - threshold);
+            leftLoss.TotalWeight += stat.Weight;
+            leftLoss.L1 += stat.Weight * delta;
+            leftLoss.L2 += stat.Weight * delta * delta;
         }
 
         int leftIdx = 0;
@@ -175,12 +176,12 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
         double bestThreshold = threshold;
         double bestScore = leftLoss.L2;
 
-        while (leftIdx < numLeaves && rightIdx < numLeaves) {
+        while (leftIdx < numLeaves || rightIdx < numLeaves) {
 
             bool nextFromLeft = rightIdx >= numLeaves || (leftIdx < numLeaves
-                                                          && orderedLeftValues[leftIdx].value < orderedRightValues[rightIdx].value);
-            double nextThreshold = nextFromLeft ? orderedLeftValues[leftIdx].value
-                                                : orderedRightValues[rightIdx].value;
+                                                          && orderedLeftValues[leftIdx].Value < orderedRightValues[rightIdx].Value);
+            double nextThreshold = nextFromLeft ? orderedLeftValues[leftIdx].Value
+                                                : orderedRightValues[rightIdx].Value;
 
             double delta = nextThreshold - threshold;
             double weight = leftLoss.TotalWeight + rightLoss.TotalWeight;
@@ -200,10 +201,10 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             rightLoss.AddShift(delta);
 
             if (nextFromLeft) {
-                leftLoss.TotalWeight -= orderedLeftValues[leftIdx].weight;
+                leftLoss.TotalWeight -= orderedLeftValues[leftIdx].Weight;
                 ++leftIdx;
             } else {
-                rightLoss.TotalWeight += orderedRightValues[rightIdx].weight;
+                rightLoss.TotalWeight += orderedRightValues[rightIdx].Weight;
                 ++rightIdx;
             }
         }
