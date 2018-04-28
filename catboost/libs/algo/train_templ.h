@@ -365,6 +365,7 @@ void UpdateAveragingFold(
     const TSplitTree& bestSplitTree,
     TLearnContext* ctx,
     TVector<TVector<double>>* treeValues,
+    TVector<TVector<double>>* prevTreeValues,
     const TVector<EMonotonicity> & monotonicFeatures
 ) {
     TProfileInfo& profile = ctx->Profile;
@@ -401,7 +402,29 @@ void UpdateAveragingFold(
         NormalizeLeafValues(indices, learnData.GetSampleCount(), treeValues);
     }
 
+    if (prevTreeValues)
+    {
+        for (int dim = 0; dim < treeValues->ysize(); ++dim) {
+            auto & treeDim = (*treeValues)[dim];
+            auto & newTreeDim = (*prevTreeValues)[dim];
+            for (size_t leave = 0; leave < treeDim.ysize(); ++leave) {
+                treeDim[leave] += newTreeDim[leave];
+            }
+        }
+    }
+
     MonotonizeLeaveValues<TError>(treeValues, bestSplitTree, currentTreeStats, ctx, monotonicFeatures);
+
+    if (prevTreeValues)
+    {
+        for (int dim = 0; dim < treeValues->ysize(); ++dim) {
+            auto & treeDim = (*treeValues)[dim];
+            auto & newTreeDim = (*prevTreeValues)[dim];
+            for (size_t leave = 0; leave < treeDim.ysize(); ++leave) {
+                treeDim[leave] -= newTreeDim[leave];
+            }
+        }
+    }
 
     UpdateLeavesApproxes(learnData, testData, error, bestSplitTree, ctx, treeValues, indices);
 }
@@ -455,8 +478,19 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
 
     CheckInterrupted(); // check after long-lasting operation
 
+    auto numPrevAddedTrees = ctx->LearnProgress.TreeStruct.ysize();
+
+
     TSplitTree bestSplitTree;
-    {
+    const auto & monotonicFeatures = ctx->Params.DataProcessingOptions->MonotonicFeatures.Get();
+    int randTreeIndex = -1;
+    TVector<TVector<double>> * prevTreeLeaves = nullptr;
+
+    if (numPrevAddedTrees && (ctx->Rand.GenRand() % 10 == 0) ) {
+        randTreeIndex = ctx->Rand.GenRand() % numPrevAddedTrees;
+        bestSplitTree = ctx->LearnProgress.TreeStruct[randTreeIndex];
+        prevTreeLeaves = &ctx->LearnProgress.LeafValues[randTreeIndex];
+    } else {
         TFold* takenFold = &ctx->LearnProgress.Folds[ctx->Rand.GenRand() % foldCount];
         const TVector<ui64> randomSeeds = GenRandUI64Vector(takenFold->BodyTailArr.ysize(), ctx->Rand.GenRand());
         if (ctx->Params.SystemOptions->IsSingleHost()) {
@@ -482,7 +516,6 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
     }
     CheckInterrupted(); // check after long-lasting operation
 
-    const auto & monotonicFeatures = ctx->Params.DataProcessingOptions->MonotonicFeatures.Get();
     if (!monotonicFeatures.empty())
         SiftDownMonotonicSplits<TError>(&bestSplitTree, monotonicFeatures);
 
@@ -549,7 +582,7 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
         CheckInterrupted(); // check after long-lasting operation
 
         TVector<TVector<double>> treeValues; // [dim][leafId]
-        UpdateAveragingFold(learnData, testData, error, bestSplitTree, ctx, &treeValues, monotonicFeatures);
+        UpdateAveragingFold(learnData, testData, error, bestSplitTree, ctx, &treeValues, prevTreeLeaves, monotonicFeatures);
 
         ctx->LearnProgress.LeafValues.push_back(treeValues);
         ctx->LearnProgress.TreeStruct.push_back(bestSplitTree);
@@ -557,21 +590,21 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
         profile.AddOperation("Update final approxes");
         CheckInterrupted(); // check after long-lasting operation
 
-        auto numAddedTrees = ctx->LearnProgress.TreeStruct.ysize();
-        if (!monotonicFeatures.empty() && numAddedTrees > 1) {
-            for (int i = 0; i < 0.1 * numAddedTrees; ++i)
-            {
-                auto randTreeIndex = ctx->Rand.GenRand() % numAddedTrees;
-                const auto & randTree = ctx->LearnProgress.TreeStruct[randTreeIndex];
-                auto & randTreeValues = ctx->LearnProgress.LeafValues[randTreeIndex];
-                const auto & randTreeStats = ctx->LearnProgress.TreeStats[randTreeIndex];
-                UpdateTreeLeaves(learnData, testData, error, randTree, ctx, &randTreeValues, randTreeStats,
-                                 monotonicFeatures);
-            }
-
-            profile.AddOperation("Update random tree leaves");
-            CheckInterrupted(); // check after long-lasting operation
-        }
+//        auto numAddedTrees = ctx->LearnProgress.TreeStruct.ysize();
+//        if (!monotonicFeatures.empty() && numAddedTrees > 1) {
+//            for (int i = 0; i < 0.1 * numAddedTrees; ++i)
+//            {
+//                auto randTreeIndex = ctx->Rand.GenRand() % numAddedTrees;
+//                const auto & randTree = ctx->LearnProgress.TreeStruct[randTreeIndex];
+//                auto & randTreeValues = ctx->LearnProgress.LeafValues[randTreeIndex];
+//                const auto & randTreeStats = ctx->LearnProgress.TreeStats[randTreeIndex];
+//                UpdateTreeLeaves(learnData, testData, error, randTree, ctx, &randTreeValues, randTreeStats,
+//                                 monotonicFeatures);
+//            }
+//
+//            profile.AddOperation("Update random tree leaves");
+//            CheckInterrupted(); // check after long-lasting operation
+//        }
 
         std::cerr << "Result Leaves:" << std::endl;
         for (auto & vals : treeValues)
