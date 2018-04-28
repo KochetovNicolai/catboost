@@ -138,6 +138,9 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
                 rightStats.push_back({rightLeaves[i] * monDirection, rightWeights[i]});
         }
 
+        int numLeft = leftStats.ysize();
+        int numRight = rightStats.ysize();
+
         SortBy(leftStats, [monDirection](const TLeaveStat & stat) { return stat.Value; });
         SortBy(rightStats, [monDirection](const TLeaveStat & stat) { return stat.Value; });
 
@@ -185,10 +188,10 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
         double bestThreshold = threshold;
         double bestScore = leftLoss.L2;
 
-        while (leftIdx < numLeaves || rightIdx < numLeaves) {
+        while (leftIdx < numLeft || rightIdx < numRight) {
 
-            bool nextFromLeft = rightIdx >= numLeaves
-                                || (leftIdx < numLeaves && leftStats[leftIdx].Value < rightStats[rightIdx].Value);
+            bool nextFromLeft = rightIdx >= numLeft
+                                || (leftIdx < numRight && leftStats[leftIdx].Value < rightStats[rightIdx].Value);
             double nextThreshold = nextFromLeft ? leftStats[leftIdx].Value
                                                 : rightStats[rightIdx].Value;
 
