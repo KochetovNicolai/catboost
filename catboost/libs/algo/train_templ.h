@@ -116,11 +116,6 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
         return hasLeft && hasRight && leftExtremum * monDirection > rightExtremum * monDirection;
     };
 
-    struct TLeaveStat {
-        double Value;
-        double Weight;
-    };
-
     auto monotonizeSplit = [&](double* leftLeaves, double* rightLeaves,
                                const double* leftWeights, const double* rightWeights,
                                int numLeaves, int monDirection) -> void {
@@ -128,14 +123,19 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
         if (!isSplitViolatesMonotonicity(leftLeaves, rightLeaves, leftWeights, rightWeights, numLeaves, monDirection))
             return;
 
+        struct TLeaveStat {
+            double Value;
+            double Weight;
+        };
+
         TVector<TLeaveStat> leftStats;
         TVector<TLeaveStat> rightStats;
 
         for (size_t i = 0; i < numLeaves; ++i) {
             if (leftWeights[i] != 0)
-                leftStats[i].emplace_back(leftLeaves[i] * monDirection, leftWeights[i]);
+                leftStats.emplace_back(leftLeaves[i] * monDirection, leftWeights[i]);
             if (rightWeights[i] != 0)
-                rightStats[i].emplace_back(rightLeaves[i] * monDirection, rightWeights[i]);
+                rightStats.emplace_back(rightLeaves[i] * monDirection, rightWeights[i]);
         }
 
         SortBy(leftStats, [monDirection](const TLeaveStat & stat) { return stat.Value; });
