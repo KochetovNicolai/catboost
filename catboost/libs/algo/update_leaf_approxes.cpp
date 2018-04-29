@@ -1,6 +1,13 @@
 #include "train.h"
 #include "train_templ.h"
 
+template <bool, bool>
+void TUpdateLeafApproxesFunction(const TDataset & learnData,
+                                 const TDataset * testData,
+                                 const TSplitTree & bestSplitTree,
+                                 TLearnContext * ctx,
+                                 TVector<TVector<double>> * treeValues,
+                                 const TVector<TIndexType> & indices);
 
 TUpdateLeafApproxesFunction GetUpdateLeafApproxesFunction(bool StoreExpApprox, bool RollbackTree)
 {
