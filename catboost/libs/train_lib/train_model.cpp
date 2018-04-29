@@ -157,7 +157,7 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
         auto & leafValues = learnProgress.LeafValues[treeIdx];
         auto & tree = learnProgress.TreeStruct[treeIdx];
         indices.emplace_back(BuildIndices(learnProgress.AveragingFold, tree, learnData, &testData, &ctx->LocalExecutor));
-        updateUpproxesRollback(learnData, &testData, tree, ctx, leafValues, indices);
+        updateUpproxesRollback(learnData, &testData, tree, ctx, leafValues, indices.back());
     }
 
     trainOneIterationFunc(learnData, &testData, ctx);
