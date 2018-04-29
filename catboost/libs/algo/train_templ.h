@@ -483,15 +483,16 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
 
 
     TSplitTree bestSplitTree;
-    const auto & monotonicFeatures = ctx->Params.DataProcessingOptions->MonotonicFeatures.Get();
-    int randTreeIndex = -1;
-    TVector<TVector<double>> * prevTreeLeaves = nullptr;
+//    const auto & monotonicFeatures = ctx->Params.DataProcessingOptions->MonotonicFeatures.Get();
+//    int randTreeIndex = -1;
+//    TVector<TVector<double>> * prevTreeLeaves = nullptr;
 
-    if (numPrevAddedTrees && (ctx->Rand.GenRand() % 100 < 50) ) {
-        randTreeIndex = ctx->Rand.GenRand() % numPrevAddedTrees;
-        bestSplitTree = ctx->LearnProgress.TreeStruct[randTreeIndex];
-        prevTreeLeaves = &ctx->LearnProgress.LeafValues[randTreeIndex];
-    } else {
+//    if (numPrevAddedTrees && (ctx->Rand.GenRand() % 100 < 50) ) {
+//        randTreeIndex = ctx->Rand.GenRand() % numPrevAddedTrees;
+//        bestSplitTree = ctx->LearnProgress.TreeStruct[randTreeIndex];
+//        prevTreeLeaves = &ctx->LearnProgress.LeafValues[randTreeIndex];
+//    } else
+    {
         TFold* takenFold = &ctx->LearnProgress.Folds[ctx->Rand.GenRand() % foldCount];
         const TVector<ui64> randomSeeds = GenRandUI64Vector(takenFold->BodyTailArr.ysize(), ctx->Rand.GenRand());
         if (ctx->Params.SystemOptions->IsSingleHost()) {
@@ -517,8 +518,8 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
     }
     CheckInterrupted(); // check after long-lasting operation
 
-    if (!monotonicFeatures.empty())
-        SiftDownMonotonicSplits<TError>(&bestSplitTree, monotonicFeatures);
+//    if (!monotonicFeatures.empty())
+//        SiftDownMonotonicSplits<TError>(&bestSplitTree, monotonicFeatures);
 
     {
         TVector<TFold*> trainFolds;
