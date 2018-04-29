@@ -631,7 +631,7 @@ inline bool CompareMetricValues(const IMetric& metric, double lhs, double rhs) {
     else if (bestValueType == EMetricBestValue::Min)
         return lhs < rhs;
     else if (bestValueType == EMetricBestValue::FixedValue)
-        return std::abs<double>(lhs - bestPossibleValue) < std::abs<double>(rhs - bestPossibleValue);
+        return fabs(lhs - bestPossibleValue) < fabs(rhs - bestPossibleValue);
 
     return false;
 }
