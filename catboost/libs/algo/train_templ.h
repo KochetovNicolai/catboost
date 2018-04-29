@@ -258,14 +258,13 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
     }
 }
 
-template <typename TError>
-void UpdateLeavesApproxes(
-        const TDataset& learnData,
-        const TDataset* testData,
-        const TError& error,
-        const TSplitTree& bestSplitTree,
-        TLearnContext* ctx,
-        TVector<TVector<double>>* treeValues,
+template<bool StoreExpApprox, bool RollbackTree = false>
+void UpdateLeafApproxes(
+        const TDataset & learnData,
+        const TDataset * testData,
+        const TSplitTree & bestSplitTree,
+        TLearnContext * ctx,
+        const TVector<TVector<double>> & treeValues,
         const TVector<TIndexType> & indices)
 {
     TProfileInfo& profile = ctx->Profile;
@@ -273,11 +272,13 @@ void UpdateLeavesApproxes(
     const double learningRate = ctx->Params.BoostingOptions->LearningRate;
     const auto sampleCount = learnData.GetSampleCount() + (testData ? testData->GetSampleCount() : 0);
 
+    constexpr double RollbackSign = RollbackTree ? -1 : 1;
+
     TVector<TVector<double>> expTreeValues;
     expTreeValues.yresize(approxDimension);
     for (int dim = 0; dim < approxDimension; ++dim) {
-        expTreeValues[dim] = (*treeValues)[dim];
-        ExpApproxIf(TError::StoreExpApprox, &expTreeValues[dim]);
+        expTreeValues[dim] = treeValues[dim] * RollbackSign;
+        ExpApproxIf(StoreExpApprox, &expTreeValues[dim]);
     }
 
     profile.AddOperation("CalcApprox result leafs");
@@ -292,7 +293,7 @@ void UpdateLeavesApproxes(
     const TIndexType* indicesData = indices.data();
     for (int dim = 0; dim < approxDimension; ++dim) {
         const double* expTreeValuesData = expTreeValues[dim].data();
-        const double* treeValuesData = (*treeValues)[dim].data();
+        const double* treeValuesData = treeValues[dim].data();
         double* approxData = bt.Approx[dim].data();
         double* avrgApproxData = ctx->LearnProgress.AvrgApprox[dim].data();
         double* testApproxData = ctx->LearnProgress.TestApprox[dim].data();
@@ -301,12 +302,12 @@ void UpdateLeavesApproxes(
                     const int permutedDocIdx = docIdx < learnSampleCount ? learnPermutationData[docIdx] : docIdx;
                     if (docIdx < tailFinish) {
                         Y_VERIFY(docIdx < learnSampleCount);
-                        approxData[docIdx] = UpdateApprox<TError::StoreExpApprox>(approxData[docIdx], expTreeValuesData[indicesData[docIdx]]);
+                        approxData[docIdx] = UpdateApprox<StoreExpApprox>(approxData[docIdx], expTreeValuesData[indicesData[docIdx]]);
                     }
                     if (docIdx < learnSampleCount) {
-                        avrgApproxData[permutedDocIdx] += treeValuesData[indicesData[docIdx]];
+                        avrgApproxData[permutedDocIdx] += treeValuesData[indicesData[docIdx]] * RollbackSign;
                     } else {
-                        testApproxData[docIdx - learnSampleCount] += treeValuesData[indicesData[docIdx]];
+                        testApproxData[docIdx - learnSampleCount] += treeValuesData[indicesData[docIdx]] * RollbackSign;
                     }
                 },
                 NPar::TLocalExecutor::TExecRangeParams(0, sampleCount).SetBlockSize(1000),
@@ -354,7 +355,7 @@ void UpdateTreeLeaves(const TDataset& learnData,
         }
     }
 
-    UpdateLeavesApproxes(learnData, testData, error, splitTree, ctx, &newValues, indices);
+    UpdateLeafApproxes<TError::StoreExpApprox>(learnData, testData, splitTree, ctx, newValues, indices);
 }
 
 template <typename TError>
@@ -426,7 +427,7 @@ void UpdateAveragingFold(
         }
     }
 
-    UpdateLeavesApproxes(learnData, testData, error, bestSplitTree, ctx, treeValues, indices);
+    UpdateLeafApproxes<TError::StoreExpApprox>(learnData, testData, bestSplitTree, ctx, *treeValues, indices);
 }
 
 /// Move monotonic features to the end of list. Return the number of monotonic features.

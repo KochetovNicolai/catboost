@@ -108,6 +108,91 @@ static void LoadPools(
     }
 }
 
+bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learnData, const TDataset& testData,
+           TVector<THolder<IMetric>> & metrics, TLearnContext* ctx) {
+
+    if (ctx->Params.DataProcessingOptions->MonotonicFeatures->empty())
+        return false;
+
+    auto & learnProgress = ctx->LearnProgress;
+    int numTrees = learnProgress.TreeStruct.ysize();
+    int numTreesToRemove = 1;
+
+    if (numTreesToRemove > numTrees || metrics.empty() || learnProgress.LearnErrorsHistory.empty())
+        return false;
+
+    auto isLastIterImprovedMetrics = [&metrics, &ctx](bool all) {
+        auto & prevMetrics = learnProgress.LearnErrorsHistory[learnProgress.LearnErrorsHistory.size() - 2];
+        auto & lastMetrics = learnProgress.LearnErrorsHistory.back();
+        bool allImproved = true;
+        bool hasImproved = false;
+        for (int i = 0; i < lastMetrics.size(); ++i) {
+            if (CompareMetricValues(*metrics[i].Get(), prevMetrics[i], lastMetrics[i]))
+                allImproved = false;
+            else
+                hasImproved = true;
+        }
+
+        return all ? allImproved : hasImproved;
+    };
+
+    if (numTrees < 10 || isLastIterImprovedMetrics(false))
+        return false;
+
+    TVector<int> trees;
+    TSet<int> treeSet;
+    TVector<TVector<TIndexType>> indices;
+
+    bool StoreExpApprox = false;
+    auto updateUpproxes = GetUpdateLeafApproxesFunction(StoreExpApprox, false);
+    TUpdateLeafApproxesFunction updateUpproxesRollback = GetUpdateLeafApproxesFunction(StoreExpApprox, true);
+
+    for (int i = 0; i < numTreesToRemove; ++i) {
+        int treeIdx = ctx->Rand.GenRand() % numTrees;
+        if (!treeSet.insert(treeIdx).second)
+            continue;
+
+        trees.push_back(treeIdx);
+
+        auto & leafValues = learnProgress.LeafValues[treeIdx];
+        auto & tree = learnProgress.TreeStruct[treeIdx];
+        indices.emplace_back(BuildIndices(learnProgress.AveragingFold, tree, learnData, &testData, &ctx->LocalExecutor));
+        updateUpproxesRollback(learnData, testData, tree, ctx, leafValues, indices);
+    }
+
+    trainOneIterationFunc(learnData, &testData, ctx);
+    CalcErrors(learnData, testData, metrics, ctx);
+
+    bool rollback = !isLastIterImprovedMetrics(true);
+
+    for (int i = 0; i < trees.ysize(); ++i) {
+        int treeIdx = trees[i];
+
+        auto & leafValues = learnProgress.LeafValues[treeIdx];
+        auto & tree = learnProgress.TreeStruct[treeIdx];
+        auto & ind = indices[treeIdx];
+        if (!rollback) {
+            for (auto & dim : leafValues)
+                dim.assign(dim.size(), 0);
+        } else
+            updateUpproxes(learnData, testData, tree, ctx, leafValues, indices);
+    }
+
+    if (rollback) {
+        if (learnData.GetSampleCount() > 0)
+            learnProgress.LearnErrorsHistory.pop_back();
+
+        if (testData.GetSampleCount() > 0)
+            learnProgress.TestErrorsHistory.pop_back();
+
+        learnProgress.TreeStruct.pop_back();
+        learnProgress.TreeStats.pop_back();
+        learnProgress.LeafValues.pop_back();
+    }
+
+    return !rollback;
+}
+
 void Train(const TDataset& learnData, const TDataset& testData, TLearnContext* ctx, TVector<TVector<double>>* testMultiApprox) {
     TProfileInfo& profile = ctx->Profile;
 
@@ -211,9 +296,11 @@ void Train(const TDataset& learnData, const TDataset& testData, TLearnContext* c
     for (ui32 iter = ctx->LearnProgress.TreeStruct.ysize(); iter < ctx->Params.BoostingOptions->IterationCount; ++iter) {
         profile.StartNextIteration();
 
-        trainOneIterationFunc(learnData, &testData, ctx);
-
-        CalcErrors(learnData, testData, metrics, ctx);
+        if (!Prune(trainOneIterationFunc, learnData, testData, metrics, ctx))
+        {
+            trainOneIterationFunc(learnData, &testData, ctx);
+            CalcErrors(learnData, testData, metrics, ctx);
+        }
 
         profile.AddOperation("Calc errors");
 

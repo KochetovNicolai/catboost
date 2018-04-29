@@ -14,6 +14,7 @@
 #include <library/containers/2d_array/2d_array.h>
 
 #include <util/generic/hash.h>
+#include <cmath>
 
 inline constexpr double GetDefaultClassificationBorder() {
     return 0.5;
@@ -619,6 +620,20 @@ inline bool IsMaxOptimal(const IMetric& metric) {
     float bestPossibleValue;
     metric.GetBestValue(&bestValueType, &bestPossibleValue);
     return bestValueType == EMetricBestValue::Max;
+}
+
+inline bool CompareMetricValues(const IMetric& metric, double lhs, double rhs) {
+    EMetricBestValue bestValueType;
+    float bestPossibleValue;
+    metric.GetBestValue(&bestValueType, &bestPossibleValue);
+    if (bestValueType == EMetricBestValue::Max)
+        return lhs > rhs;
+    else if (bestValueType == EMetricBestValue::Min)
+        return lhs < rhs;
+    else if (bestValueType == EMetricBestValue::FixedValue)
+        return std::abs<double>(lhs - bestPossibleValue) < std::abs<double>(rhs - bestPossibleValue);
+
+    return false;
 }
 
 inline void CheckTarget(const TVector<float>& target, ELossFunction lossFunction) {

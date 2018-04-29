@@ -40,6 +40,7 @@ SRCS(
     cv_data_partition.cpp
     calc_score_cache.cpp
     yetirank_helpers.cpp
+    update_leaf_approxes.cpp
 )
 
 PEERDIR(
