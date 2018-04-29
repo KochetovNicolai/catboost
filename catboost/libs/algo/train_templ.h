@@ -487,9 +487,9 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
 
 
     TSplitTree bestSplitTree;
-//    const auto & monotonicFeatures = ctx->Params.DataProcessingOptions->MonotonicFeatures.Get();
-//    int randTreeIndex = -1;
-//    TVector<TVector<double>> * prevTreeLeaves = nullptr;
+    const auto & monotonicFeatures = ctx->Params.DataProcessingOptions->MonotonicFeatures.Get();
+    int randTreeIndex = -1;
+    TVector<TVector<double>> * prevTreeLeaves = nullptr;
 
 //    if (numPrevAddedTrees && (ctx->Rand.GenRand() % 100 < 50) ) {
 //        randTreeIndex = ctx->Rand.GenRand() % numPrevAddedTrees;
