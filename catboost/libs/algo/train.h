@@ -13,7 +13,7 @@ using TUpdateLeafApproxesFunction = std::function<void(const TDataset & learnDat
                                                        const TDataset * testData,
                                                        const TSplitTree & bestSplitTree,
                                                        TLearnContext * ctx,
-                                                       TVector<TVector<double>> * treeValues,
+                                                       const TVector<TVector<double>> & treeValues,
                                                        const TVector<TIndexType> & indices)>;
 
 TUpdateLeafApproxesFunction GetUpdateLeafApproxesFunction(bool StoreExpApprox, bool RollbackTree);
