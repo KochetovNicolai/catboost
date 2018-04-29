@@ -121,7 +121,7 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
     if (numTreesToRemove > numTrees || metrics.empty() || learnProgress.LearnErrorsHistory.empty())
         return false;
 
-    auto isLastIterImprovedMetrics = [&metrics, &ctx](bool all) {
+    auto isLastIterImprovedMetrics = [&](bool all) {
         auto & prevMetrics = learnProgress.LearnErrorsHistory[learnProgress.LearnErrorsHistory.size() - 2];
         auto & lastMetrics = learnProgress.LearnErrorsHistory.back();
         bool allImproved = true;
