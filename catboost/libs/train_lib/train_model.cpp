@@ -175,7 +175,7 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
             for (auto & dim : leafValues)
                 dim.assign(dim.size(), 0);
         } else
-            updateUpproxes(learnData, &testData, tree, ctx, leafValues, indices);
+            updateUpproxes(learnData, &testData, tree, ctx, leafValues, indices[i]);
     }
 
     if (rollback) {
