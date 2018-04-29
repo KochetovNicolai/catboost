@@ -277,7 +277,11 @@ void UpdateLeafApproxes(
     TVector<TVector<double>> expTreeValues;
     expTreeValues.yresize(approxDimension);
     for (int dim = 0; dim < approxDimension; ++dim) {
-        expTreeValues[dim] = treeValues[dim] * RollbackSign;
+        expTreeValues[dim] = treeValues[dim];
+        if (RollbackTree) {
+            for (auto & val : expTreeValues[dim])
+                val = -val;
+        }
         ExpApproxIf(StoreExpApprox, &expTreeValues[dim]);
     }
 
