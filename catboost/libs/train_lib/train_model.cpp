@@ -108,6 +108,22 @@ static void LoadPools(
     }
 }
 
+void RemoveTree(const TDataset& learnData, const TDataset& testData, TLearnContext* ctx, int treeIdx, TVector<TIndexType>& indices) {
+    bool StoreExpApprox = false;
+    TUpdateLeafApproxesFunction updateUpproxesRollback = GetUpdateLeafApproxesFunction(StoreExpApprox, true);
+
+    auto & learnProgress = ctx->LearnProgress;
+
+    auto & leafValues = learnProgress.LeafValues[treeIdx];
+    auto & tree = learnProgress.TreeStruct[treeIdx];
+    auto ind = BuildIndices(learnProgress.AveragingFold, tree, learnData, &testData, &ctx->LocalExecutor);
+
+    for (auto & dim : leafValues)
+        dim.assign(dim.size(), 0);
+
+    updateUpproxesRollback(learnData, &testData, learnProgress.TreeStruct.back(), ctx, learnProgress.LeafValues.back(), ind);
+}
+
 bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learnData, const TDataset& testData,
            TVector<THolder<IMetric>> & metrics, TLearnContext* ctx) {
 
@@ -116,10 +132,6 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
 
     auto & learnProgress = ctx->LearnProgress;
     int numTrees = learnProgress.TreeStruct.ysize();
-    int numTreesToRemove = 5;
-
-    if (numTreesToRemove > numTrees || metrics.empty() || learnProgress.LearnErrorsHistory.empty())
-        return false;
 
     auto isLastIterImprovedMetrics = [&](bool all) {
         auto & prevMetrics = learnProgress.LearnErrorsHistory[learnProgress.LearnErrorsHistory.size() - 2];
@@ -135,6 +147,19 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
 
         return all ? allImproved : hasImproved;
     };
+
+    if (numTrees > 1 && isLastIterImprovedMetrics(false))
+        return false;
+
+    {
+        auto indices = BuildIndices(learnProgress.AveragingFold, learnProgress.TreeStruct.back(), learnData, &testData, &ctx->LocalExecutor);
+        RemoveTree(learnData, testData, ctx, numTrees - 1, indices);
+    }
+
+    int numTreesToRemove = 5;
+
+    if (numTreesToRemove > numTrees || metrics.empty() || learnProgress.LearnErrorsHistory.empty())
+        return false;
 
     if (numTrees < 10 || isLastIterImprovedMetrics(false))
         return false;
@@ -303,11 +328,10 @@ void Train(const TDataset& learnData, const TDataset& testData, TLearnContext* c
     for (ui32 iter = ctx->LearnProgress.TreeStruct.ysize(); iter < ctx->Params.BoostingOptions->IterationCount; ++iter) {
         profile.StartNextIteration();
 
-        if (!Prune(trainOneIterationFunc, learnData, testData, metrics, ctx))
-        {
-            trainOneIterationFunc(learnData, &testData, ctx);
-            CalcErrors(learnData, testData, metrics, ctx);
-        }
+
+        trainOneIterationFunc(learnData, &testData, ctx);
+        CalcErrors(learnData, testData, metrics, ctx);
+        Prune(trainOneIterationFunc, learnData, testData, metrics, ctx);
 
         profile.AddOperation("Calc errors");
 
