@@ -118,10 +118,16 @@ void RemoveTree(const TDataset& learnData, const TDataset& testData, TLearnConte
     auto & tree = learnProgress.TreeStruct[treeIdx];
     auto ind = BuildIndices(learnProgress.AveragingFold, tree, learnData, &testData, &ctx->LocalExecutor);
 
+    updateUpproxesRollback(learnData, &testData, learnProgress.TreeStruct.back(), ctx, learnProgress.LeafValues.back(), ind);
+
     for (auto & dim : leafValues)
         dim.assign(dim.size(), 0);
 
-    updateUpproxesRollback(learnData, &testData, learnProgress.TreeStruct.back(), ctx, learnProgress.LeafValues.back(), ind);
+    if (learnData.GetSampleCount() > 0 && treeIdx > 0)
+        learnProgress.LearnErrorsHistory[treeIdx] = learnProgress.LearnErrorsHistory[treeIdx - 1];
+
+    if (testData.GetSampleCount() > 0 && treeIdx > 0)
+        learnProgress.TestErrorsHistory[treeIdx] = learnProgress.TestErrorsHistory[treeIdx - 1];
 }
 
 bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learnData, const TDataset& testData,
