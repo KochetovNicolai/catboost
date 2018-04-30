@@ -149,8 +149,8 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
     auto updateUpproxes = GetUpdateLeafApproxesFunction(StoreExpApprox, false);
     TUpdateLeafApproxesFunction updateUpproxesRollback = GetUpdateLeafApproxesFunction(StoreExpApprox, true);
 
-    for (int i = 0; i < numTrees /*numTreesToRemove*/; ++i) {
-        int treeIdx = i; //= ctx->Rand.GenRand() % numTrees;
+    for (int i = 0; i < numTreesToRemove; ++i) {
+        int treeIdx = ctx->Rand.GenRand() % numTrees;
         if (!treeSet.insert(treeIdx).second)
             continue;
 
