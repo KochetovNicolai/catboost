@@ -154,15 +154,14 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
         return all ? allImproved : hasImproved;
     };
 
-    if (numTrees > 1 && isLastIterImprovedMetrics(false))
+    int numTreesToRemove = 5;
+    if (numTrees < numTreesToRemove || isLastIterImprovedMetrics(false))
         return false;
 
     {
         auto indices = BuildIndices(learnProgress.AveragingFold, learnProgress.TreeStruct.back(), learnData, &testData, &ctx->LocalExecutor);
         RemoveTree(learnData, testData, ctx, numTrees - 1, indices);
     }
-
-    int numTreesToRemove = 5;
 
     if (numTreesToRemove > numTrees || metrics.empty() || learnProgress.LearnErrorsHistory.empty())
         return false;
