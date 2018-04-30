@@ -166,7 +166,7 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
     if (metrics.empty() || learnProgress.LearnErrorsHistory.empty())
         return false;
 
-    std::cerr << "Prune trees " << learnProgress.LearnErrorsHistory.back().back() << std::endl;
+//    std::cerr << "Prune trees " << learnProgress.LearnErrorsHistory.back().back() << std::endl;
 
     TVector<int> trees;
     TSet<int> treeSet;
@@ -197,14 +197,13 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
 
     bool rollback = !isLastIterImprovedMetrics(true);
 
-    std::cerr << (rollback ? "Rollback " : "Ok ") << learnProgress.LearnErrorsHistory.back().back() << std::endl;
+//    std::cerr << (rollback ? "Rollback " : "Ok ") << learnProgress.LearnErrorsHistory.back().back() << std::endl;
 
     for (int i = 0; i < trees.ysize(); ++i) {
         int treeIdx = trees[i];
 
         auto & leafValues = learnProgress.LeafValues[treeIdx];
         auto & tree = learnProgress.TreeStruct[treeIdx];
-        auto & ind = indices[treeIdx];
         if (!rollback) {
             for (auto & dim : leafValues)
                 dim.assign(dim.size(), 0);

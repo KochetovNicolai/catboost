@@ -2688,3 +2688,37 @@ def test_eval_non_additive_metric():
     yatest.common.execute(cmd)
 
     return [local_canonical_file(output_eval_path)]
+
+
+def test_monotonic():
+    output_model_path = yatest.common.test_output_path('model.bin')
+
+    train_path = data_file('monotonic', 'single_feature', 'single_feature.tsv')
+    output_path = yatest.common.test_output_path('output.tsv')
+
+    cmd = (
+        CATBOOST_PATH,
+        'fit',
+        '--use-best-model', 'false',
+        '--loss-function', 'RMSE',
+        '-f', train_path,
+        '-t', train_path,
+        '--column-description', data_file('monotonic', 'single_feature', 'single_feature.cd'),
+        '-i', '100',
+        '-n', '4',
+        '-r', '0',
+        '-m', output_model_path,
+        '-M', '1',
+        '--eval-file', output_path
+    )
+    yatest.common.execute(cmd)
+
+    train = np.loadtxt(train_path)
+    output = np.loadtxt(output_path, skiprows=1)
+
+    x = train[:,1]
+    pred = output[:,1]
+    ind = x.argsort()
+
+    assert np.min(np.diff(pred[ind])) >= 0
+
