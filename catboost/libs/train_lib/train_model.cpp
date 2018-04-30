@@ -147,7 +147,7 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
         for (int i = 0; i < lastMetrics.size(); ++i) {
             if (CompareMetricValues(*metrics[i].Get(), prevMetrics[i], lastMetrics[i]))
                 allImproved = false;
-            else
+            else if (CompareMetricValues(*metrics[i].Get(), lastMetrics[i], prevMetrics[i]))
                 hasImproved = true;
         }
 
@@ -163,10 +163,7 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
         RemoveTree(learnData, testData, ctx, numTrees - 1, indices);
     }
 
-    if (numTreesToRemove > numTrees || metrics.empty() || learnProgress.LearnErrorsHistory.empty())
-        return false;
-
-    if (numTrees < 10 || isLastIterImprovedMetrics(false))
+    if (metrics.empty() || learnProgress.LearnErrorsHistory.empty())
         return false;
 
     std::cerr << "Prune trees " << learnProgress.LearnErrorsHistory.back().back() << std::endl;
@@ -192,8 +189,11 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
         updateUpproxesRollback(learnData, &testData, tree, ctx, leafValues, indices.back());
     }
 
+    auto prevLearningRate = ctx->Params.BoostingOptions->LearningRate;
+    ctx->Params.BoostingOptions->LearningRate = 1.0;
     trainOneIterationFunc(learnData, &testData, ctx);
     CalcErrors(learnData, testData, metrics, ctx);
+    ctx->Params.BoostingOptions->LearningRate = prevLearningRate;
 
     bool rollback = !isLastIterImprovedMetrics(true);
 
