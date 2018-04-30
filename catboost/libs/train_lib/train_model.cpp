@@ -139,6 +139,8 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
     if (numTrees < 10 || isLastIterImprovedMetrics(false))
         return false;
 
+    std::cerr << "Prune trees. " << std::endl;
+
     TVector<int> trees;
     TSet<int> treeSet;
     TVector<TVector<TIndexType>> indices;
@@ -164,6 +166,8 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
     CalcErrors(learnData, testData, metrics, ctx);
 
     bool rollback = !isLastIterImprovedMetrics(true);
+
+    std::cerr << (rollback ? "Rollback" : "Ok") << std::endl;
 
     for (int i = 0; i < trees.ysize(); ++i) {
         int treeIdx = trees[i];

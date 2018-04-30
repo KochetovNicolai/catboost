@@ -144,13 +144,13 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
         SortBy(leftStats, [monDirection](const TLeaveStat & stat) { return stat.Value; });
         SortBy(rightStats, [monDirection](const TLeaveStat & stat) { return stat.Value; });
 
-        std::cerr << "Left values: ";
-        for (auto & st : leftStats)
-            std::cerr << '(' << st.Value << ", " << st.Weight << ") ";
-        std::cerr << "\nRight values: ";
-        for (auto & st : rightStats)
-            std::cerr << '(' << st.Value << ", " << st.Weight << ") ";
-        std::cerr << std::endl;
+//        std::cerr << "Left values: ";
+//        for (auto & st : leftStats)
+//            std::cerr << '(' << st.Value << ", " << st.Weight << ") ";
+//        std::cerr << "\nRight values: ";
+//        for (auto & st : rightStats)
+//            std::cerr << '(' << st.Value << ", " << st.Weight << ") ";
+//        std::cerr << std::endl;
 
         /// Find optimal threshold:
         /// \sum{(left[i].value - threshold)^2 * left[i].weight * I[left[i].value > threshold]} +
@@ -201,11 +201,11 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             alpha = std::max<double>(0, std::min<double>(1, alpha));
             double score = leftLoss.getScore(-alpha * delta) + rightLoss.getScore(alpha * delta);
 
-            std::cerr << '\n' << leftIdx << '\t' << rightIdx << '\t' << alpha
-                      << '\t' << leftLoss.getScore(-alpha * delta) << '\t' << rightLoss.getScore(alpha * delta)
-                      << '\t' << score
-                      << '\t' << leftLoss.TotalWeight << '\t' << rightLoss.TotalWeight
-                      << '\t' << leftLoss.L1 << '\t' << rightLoss.L1 << std::endl;
+//            std::cerr << '\n' << leftIdx << '\t' << rightIdx << '\t' << alpha
+//                      << '\t' << leftLoss.getScore(-alpha * delta) << '\t' << rightLoss.getScore(alpha * delta)
+//                      << '\t' << score
+//                      << '\t' << leftLoss.TotalWeight << '\t' << rightLoss.TotalWeight
+//                      << '\t' << leftLoss.L1 << '\t' << rightLoss.L1 << std::endl;
 
             if (score < bestScore) {
                 bestScore = score;
