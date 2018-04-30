@@ -116,7 +116,7 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
 
     auto & learnProgress = ctx->LearnProgress;
     int numTrees = learnProgress.TreeStruct.ysize();
-    int numTreesToRemove = 1;
+    int numTreesToRemove = 5;
 
     if (numTreesToRemove > numTrees || metrics.empty() || learnProgress.LearnErrorsHistory.empty())
         return false;
