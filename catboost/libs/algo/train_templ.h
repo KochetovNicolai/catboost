@@ -226,7 +226,7 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             threshold = nextThreshold;
         }
 
-        std::cerr << "Selected th: " << bestThreshold << '\n' << std::endl;
+//        std::cerr << "Selected th: " << bestThreshold << '\n' << std::endl;
 
         for (size_t i = 0; i < numLeaves; ++i) {
             if (leftLeaves[i] * monDirection > bestThreshold * monDirection)
@@ -612,13 +612,13 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
 //            CheckInterrupted(); // check after long-lasting operation
 //        }
 
-        std::cerr << "Result Leaves:" << std::endl;
-        for (auto & vals : treeValues)
-        {
-            std::cerr << "dim: ";
-            for (auto val : vals)
-                std::cerr << val << ' ';
-            std::cerr << std::endl;
-        }
+//        std::cerr << "Result Leaves:" << std::endl;
+//        for (auto & vals : treeValues)
+//        {
+//            std::cerr << "dim: ";
+//            for (auto val : vals)
+//                std::cerr << val << ' ';
+//            std::cerr << std::endl;
+//        }
     }
 }
