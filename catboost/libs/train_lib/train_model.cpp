@@ -189,6 +189,9 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
         if (testData.GetSampleCount() > 0)
             learnProgress.TestErrorsHistory.pop_back();
 
+        auto ind = BuildIndices(learnProgress.AveragingFold, learnProgress.TreeStruct.back(), learnData, &testData, &ctx->LocalExecutor);
+        updateUpproxes(learnData, &testData, learnProgress.TreeStruct.back(), ctx, learnProgress.LeafValues.back(), ind);
+
         learnProgress.TreeStruct.pop_back();
         learnProgress.TreeStats.pop_back();
         learnProgress.LeafValues.pop_back();
