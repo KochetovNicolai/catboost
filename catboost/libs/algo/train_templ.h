@@ -361,8 +361,8 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
             for (int dim = 0; dim < approxDimension; ++dim)
                 approx[doc].push_back(avrgApprox[dim][permutedDocIdx]);
 
-            if (!learnQueriesInfo.empty())
-                queriesInfo[doc] = learnQueriesInfo[permutedDocIdx];
+//            if (!learnQueriesInfo.empty())
+//                queriesInfo[doc] = learnQueriesInfo[permutedDocIdx];
         }
 
         if (treeValues) {
@@ -372,7 +372,7 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
             }
         }
 
-        metricPerLeaf[leaf] = EvalErrors(approx, target, weight, queriesInfo, metric, &ctx->LocalExecutor);
+        metricPerLeaf[leaf] = EvalErrors(approx, target, weight, learnQueriesInfo, metric, &ctx->LocalExecutor);
     }
 }
 
