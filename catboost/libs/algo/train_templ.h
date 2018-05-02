@@ -461,7 +461,8 @@ void PruneTreeNodes(TVector<double> & prevLoss,
         }
     };
 
-    auto prune = [&](int start, int subtreeSize, int currMonotonicFeature) {
+    std::function<bool(int, int, int)> prune;
+    prune = [&](int start, int subtreeSize, int currMonotonicFeature) {
         if (subtreeSize == 1) {
             bool lossGotWorse = isLossGotWorse(prevLoss[start], currLoss[start]);
             if (lossGotWorse) {

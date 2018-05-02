@@ -335,7 +335,7 @@ void Train(const TDataset& learnData, const TDataset& testData, TLearnContext* c
 
         trainOneIterationFunc(learnData, &testData, ctx);
         CalcErrors(learnData, testData, metrics, ctx);
-        Prune(trainOneIterationFunc, learnData, testData, metrics, ctx);
+        // Prune(trainOneIterationFunc, learnData, testData, metrics, ctx);
 
         profile.AddOperation("Calc errors");
 
