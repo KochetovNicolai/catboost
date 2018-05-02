@@ -326,9 +326,9 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
                                   TLearnContext * ctx,
                                   const THolder<IMetric> & metric,
                                   const TVector<TVector<double>> * treeValues,
+                                  int numLeafs,
                                   const TVector<TIndexType> & indices)
 {
-    const int numLeafs = treeValues[0].ysize();
     TVector<double> metricPerLeaf(numLeafs);
     TVector<TVector<int>> leafsIndices(numLeafs);
 
@@ -364,7 +364,6 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
             if (!learnQueriesInfo.empty())
                 queriesInfo[doc] = learnQueriesInfo[permutedDocIdx];
         }
-
 
         if (treeValues) {
             for (auto & values : approx) {
@@ -441,7 +440,7 @@ void PruneTreeNodes(TVector<double> & prevLoss,
     };
 
     int numDims = leafValues->ysize();
-    int numLeafs = (*leafValues)[0].ysize();
+    int numLeafs =leafValues->at(0).ysize();
 
     auto setLeafsLoverBound = [&](int start, int count, double bound) {
         for (int dim = 0; dim < numDims; ++dim) {
@@ -556,8 +555,9 @@ void UpdateAveragingFold(
     if (!monotonicFeatures.empty()) {
         MonotonizeLeaveValues<TError>(treeValues, bestSplitTree, currentTreeStats, ctx, monotonicFeatures);
         THolder<IMetric> metric = CreateMetric(ctx->Params.LossFunctionDescription, approxDimension);
-        TVector<double> prevIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, nullptr, indices);
-        TVector<double> currIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, treeValues, indices);
+        int numLeafs = treeValues->at(0).ysize();
+        TVector<double> prevIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, nullptr, numLeafs, indices);
+        TVector<double> currIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, treeValues, numLeafs, indices);
         PruneTreeNodes<TError>(prevIterLeafsLoss, currIterLeafsLoss, monotonicFeatures, treeValues, metric);
     }
 
