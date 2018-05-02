@@ -320,6 +320,63 @@ void UpdateLeafApproxes(
     }
 }
 
+template <typename Error>
+TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
+                                  const TSplitTree & tree,
+                                  TLearnContext * ctx,
+                                  const THolder<IMetric> & metric,
+                                  const TVector<TVector<double>> * treeValues,
+                                  const TVector<TIndexType> & indices)
+{
+    const int numLeafs = treeValues[0].ysize();
+    TVector<double> metricPerLeaf(numLeafs);
+    TVector<TVector<int>> leafsIndices(numLeafs);
+
+    const auto& avrgApprox = ctx->LearnProgress.AvrgApprox;
+    const float* learnTarget = ctx->LearnProgress.AveragingFold.LearnTarget.data();
+    const float* learnWeight = ctx->LearnProgress.AveragingFold.LearnWeights.data();
+    const auto& learnQueriesInfo = ctx->LearnProgress.AveragingFold.LearnQueriesInfo;
+    const size_t* learnPermutationData = ctx->LearnProgress.AveragingFold.LearnPermutation.data();
+
+    const int approxDimension = avrgApprox.ysize();
+    const auto learnSampleCount = learnData.GetSampleCount();
+
+    for (int doc = 0; doc < indices.ysize(); ++doc)
+        if (doc < learnSampleCount)
+            leafsIndices[indices[doc]].push_back(doc);
+
+    for (int leaf = 0; leaf < numLeafs; ++leaf) {
+        const auto numDocs = leafsIndices[leaf].size();
+        TVector<TVector<double>> approx(numDocs);
+        TVector<float> target(numDocs);
+        TVector<float> weight(numDocs);
+        TVector<TQueryInfo> queriesInfo(numDocs);
+
+        for (int doc = 0; doc < numDocs; ++doc) {
+            const auto docIdx = leafsIndices[leaf][doc];
+            const auto permutedDocIdx = learnPermutationData[docIdx];
+            target[doc] = learnTarget[permutedDocIdx];
+            weight[doc] = learnWeight[permutedDocIdx];
+
+            for (int dim = 0; dim < approxDimension; ++dim)
+                approx[doc].push_back(avrgApprox[dim][permutedDocIdx]);
+
+            if (!learnQueriesInfo.empty())
+                queriesInfo[doc] = learnQueriesInfo[permutedDocIdx];
+        }
+
+
+        if (treeValues) {
+            for (auto & values : approx) {
+                for (int dim = 0; dim < approxDimension; ++dim)
+                    values[dim] += (*treeValues)[dim][leaf];
+            }
+        }
+
+        metricPerLeaf[leaf] = EvalErrors(approx, target, weight, queriesInfo, metric, &ctx->LocalExecutor);
+    }
+}
+
 template <typename TError>
 void UpdateTreeLeaves(const TDataset& learnData,
                       const TDataset* testData,
@@ -360,6 +417,83 @@ void UpdateTreeLeaves(const TDataset& learnData,
     }
 
     UpdateLeafApproxes<TError::StoreExpApprox>(learnData, testData, splitTree, ctx, newValues, indices);
+}
+
+
+template <typename TError>
+void PruneTreeNodes(TVector<double> & prevLoss,
+                    TVector<double> & currLoss,
+                    const TVector<EMonotonicity> & monotonicFeatures,
+                    TVector<TVector<double>> * leafValues,
+                    const THolder<IMetric> & metric) {
+    EMetricBestValue valueType;
+    float bestValue;
+    metric->GetBestValue(&valueType, &bestValue);
+
+    auto isLossGotWorse = [&](double prev, double curr) {
+        if (valueType == EMetricBestValue::Max)
+            return curr < prev;
+        if (valueType == EMetricBestValue::Min)
+            return curr > prev;
+        if (valueType == EMetricBestValue::FixedValue)
+            return fabs(curr - bestValue) > fabs(prev - bestValue);
+        return false;
+    };
+
+    int numDims = leafValues->ysize();
+    int numLeafs = (*leafValues)[0].ysize();
+
+    auto setLeafsLoverBound = [&](int start, int count, double bound) {
+        for (int dim = 0; dim < numDims; ++dim) {
+            auto & dimValues = (*leafValues)[dim];
+
+            for (int leave = start; leave < start + count; ++leave)
+                dimValues[leave] = std::max(bound, dimValues[leave]);
+        }
+    };
+
+    auto setLeafsUpperBound = [&](int start, int count, double bound) {
+        for (int dim = 0; dim < numDims; ++dim) {
+            auto & dimValues = (*leafValues)[dim];
+
+            for (int leave = start; leave < start + count; ++leave)
+                dimValues[leave] = std::min(bound, dimValues[leave]);
+        }
+    };
+
+    auto prune = [&](int start, int subtreeSize, int currMonotonicFeature) {
+        if (subtreeSize == 1) {
+            bool lossGotWorse = isLossGotWorse(prevLoss[start], currLoss[start]);
+            if (lossGotWorse) {
+                for (int dim = 0; dim < numDims; ++dim)
+                    (*leafValues)[dim][start] = 0;
+            }
+            return lossGotWorse;
+        }
+
+        auto childSize = subtreeSize / 2;
+        bool leftSubtreePruned = prune(start, childSize, currMonotonicFeature + 1);
+        bool rightSubtreePruned = prune(start + childSize, childSize, currMonotonicFeature + 1);
+
+        if (leftSubtreePruned && !rightSubtreePruned) {
+            if (monotonicFeatures[currMonotonicFeature] == EMonotonicity::Ascending)
+                setLeafsLoverBound(start + childSize, childSize, 0);
+            else
+                setLeafsUpperBound(start + childSize, childSize, 0);
+        }
+        if (!leftSubtreePruned && rightSubtreePruned) {
+            if (monotonicFeatures[currMonotonicFeature] == EMonotonicity::Ascending)
+                setLeafsUpperBound(start, childSize, 0);
+            else
+                setLeafsLoverBound(start, childSize, 0);
+        }
+
+        return leftSubtreePruned || rightSubtreePruned;
+    };
+
+    int numLeafsInMostRestrictedSubtree = 1 << monotonicFeatures.ysize();
+    for (int start = 0; start < numLeafs; start += numLeafsInMostRestrictedSubtree)
+        prune(start, numLeafsInMostRestrictedSubtree, 0);
 }
 
 template <typename TError>
@@ -418,7 +552,13 @@ void UpdateAveragingFold(
         }
     }
 
-    MonotonizeLeaveValues<TError>(treeValues, bestSplitTree, currentTreeStats, ctx, monotonicFeatures);
+    if (!monotonicFeatures.empty()) {
+        MonotonizeLeaveValues<TError>(treeValues, bestSplitTree, currentTreeStats, ctx, monotonicFeatures);
+        THolder<IMetric> metric = CreateMetric(ctx->Params.LossFunctionDescription, approxDimension);
+        TVector<double> prevIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, nullptr, indices);
+        TVector<double> currIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, treeValues, indices);
+        PruneTreeNodes<TError>(prevIterLeafsLoss, currIterLeafsLoss, monotonicFeatures, treeValues, metric);
+    }
 
     if (prevTreeValues)
     {

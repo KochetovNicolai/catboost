@@ -14,6 +14,7 @@
 #include <util/system/yassert.h>
 
 #include <limits>
+#include <util/generic/yexception.h>
 
 /* TMetric */
 
@@ -1605,6 +1606,15 @@ TVector<THolder<IMetric>> CreateMetrics(
         }
     }
     return errors;
+}
+
+THolder<IMetric> CreateMetric(const NCatboostOptions::TOption<NCatboostOptions::TLossDescription>& lossFunctionOption, int approxDimension) {
+    TVector<THolder<IMetric>> createdMetrics = CreateMetricFromDescription(lossFunctionOption, approxDimension);
+
+    if (createdMetrics.size() != 1)
+        ythrow yexception() << "CreateMetric expected single loss function";
+
+    return std::move(createdMetrics.front());
 }
 
 TVector<TString> GetMetricsDescription(const TVector<THolder<IMetric>>& metrics) {

@@ -604,6 +604,8 @@ TVector<THolder<IMetric>> CreateMetrics(
     int approxDimension
 );
 
+THolder<IMetric> CreateMetric(const NCatboostOptions::TOption<NCatboostOptions::TLossDescription>& lossFunctionOption, int approxDimension);
+
 TVector<TString> GetMetricsDescription(const TVector<THolder<IMetric>>& metrics);
 
 double EvalErrors(
