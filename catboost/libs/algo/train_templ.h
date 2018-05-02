@@ -408,6 +408,8 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
 
         metricPerLeaf[leaf] = EvalErrors(approx, target, weight, learnQueriesInfo, metric, &ctx->LocalExecutor);
     }
+
+    return metricPerLeaf;
 }
 
 template <typename TError>
