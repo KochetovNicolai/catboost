@@ -64,15 +64,9 @@ void UpdateLearningFold(
     UpdateBodyTailApprox<TError::StoreExpApprox>(approxDelta, ctx->Params.BoostingOptions->LearningRate, &ctx->LocalExecutor, fold);
 }
 
-/// Change leave values in order to make tree monotonic on monotonicFeatures.
-/// It's assumed that all monotonic splits are at the bottom levels of the tree.
+
 template <typename TError>
-void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
-                           const TSplitTree& tree,
-                           const TTreeStats & treeStats,
-                           TLearnContext* ctx,
-                           const TVector<EMonotonicity> & monotonicFeatures)
-{
+TVector<EMonotonicity> GetTreeMonotonicFeatures(const TSplitTree& tree, const TVector<EMonotonicity> & monotonicFeatures) {
     int numMonotonicSplits = 0;
     const auto & splits = tree.Splits;
     int numSplits = splits.ysize();
@@ -85,13 +79,45 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
             break;
     }
 
-    if (numMonotonicSplits == 0)
-        return;
-
     TVector<EMonotonicity> monotonicity;
     monotonicity.reserve(numMonotonicSplits);
     for (int i = numSplits - numMonotonicSplits; i < numSplits; ++i)
         monotonicity.push_back(monotonicFeatures[splits[i].FeatureIdx]);
+
+    return monotonicity;
+}
+
+/// Change leave values in order to make tree monotonic on monotonicFeatures.
+/// It's assumed that all monotonic splits are at the bottom levels of the tree.
+template <typename TError>
+void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
+                           const TSplitTree& tree,
+                           const TTreeStats & treeStats,
+                           TLearnContext* ctx,
+                           const TVector<EMonotonicity> & monotonicFeatures)
+{
+//    int numMonotonicSplits = 0;
+//    const auto & splits = tree.Splits;
+//    int numSplits = splits.ysize();
+//    while (numMonotonicSplits < numSplits) {
+//        const auto & split = splits[numSplits - numMonotonicSplits - 1];
+//        if (0 <= split.FeatureIdx && split.FeatureIdx < monotonicFeatures.ysize()
+//            && monotonicFeatures[split.FeatureIdx] != EMonotonicity::None)
+//            ++numMonotonicSplits;
+//        else
+//            break;
+//    }
+//
+//    if (numMonotonicSplits == 0)
+//        return;
+//
+//    TVector<EMonotonicity> monotonicity;
+//    monotonicity.reserve(numMonotonicSplits);
+//    for (int i = numSplits - numMonotonicSplits; i < numSplits; ++i)
+//        monotonicity.push_back(monotonicFeatures[splits[i].FeatureIdx]);
+
+    if (monotonicFeatures.empty())
+        return;
 
     auto isSplitViolatesMonotonicity = [](const double* leftLeaves, const double* rightLeaves,
                                           const double* leftWeights, const double* rightWeights,
@@ -241,10 +267,10 @@ void MonotonizeLeaveValues(TVector<TVector<double>>* leafValues,
 
     for (int dim = 0; dim < approxDimension; ++dim)
     {
-        for (int depth = 0; depth < monotonicity.size(); ++depth)
+        for (int depth = 0; depth < monotonicFeatures.size(); ++depth)
         {
-            int direction = static_cast<int>(monotonicity[depth]);
-            int numLeaves = 1 << (monotonicity.ysize() - 1 - depth);
+            int direction = static_cast<int>(monotonicFeatures[depth]);
+            int numLeaves = 1 << (monotonicFeatures.ysize() - 1 - depth);
             for (int leaf = 0; leaf < leafCount; leaf += 2 * numLeaves)
             {
                 double* leftLeaves = &(*leafValues)[dim][leaf];
@@ -354,7 +380,7 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
         TVector<TVector<double>> approx(approxDimension);
         TVector<float> target(numDocs);
         TVector<float> weight(numDocs);
-        TVector<TQueryInfo> queriesInfo(numDocs);
+        //TVector<TQueryInfo> queriesInfo(numDocs);
 
         for (int dim = 0; dim < approxDimension; ++dim)
             approx[dim].resize(numDocs);
@@ -448,7 +474,7 @@ void PruneTreeNodes(TVector<double> & prevLoss,
     };
 
     int numDims = leafValues->ysize();
-    int numLeafs =leafValues->at(0).ysize();
+    int numLeafs = leafValues->at(0).ysize();
 
     auto setLeafsLoverBound = [&](int start, int count, double bound) {
         for (int dim = 0; dim < numDims; ++dim) {
@@ -561,12 +587,13 @@ void UpdateAveragingFold(
     }
 
     if (!monotonicFeatures.empty()) {
-        MonotonizeLeaveValues<TError>(treeValues, bestSplitTree, currentTreeStats, ctx, monotonicFeatures);
+        auto treeMonotonicFeatures = GetTreeMonotonicFeatures(bestSplitTree, monotonicFeatures);
+        MonotonizeLeaveValues<TError>(treeValues, bestSplitTree, currentTreeStats, ctx, treeMonotonicFeatures);
         THolder<IMetric> metric = CreateMetric(ctx->Params.LossFunctionDescription, approxDimension);
         int numLeafs = treeValues->at(0).ysize();
         TVector<double> prevIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, nullptr, numLeafs, indices);
         TVector<double> currIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, treeValues, numLeafs, indices);
-        PruneTreeNodes<TError>(prevIterLeafsLoss, currIterLeafsLoss, monotonicFeatures, treeValues, metric);
+        PruneTreeNodes<TError>(prevIterLeafsLoss, currIterLeafsLoss, treeMonotonicFeatures, treeValues, metric);
     }
 
     if (prevTreeValues)
