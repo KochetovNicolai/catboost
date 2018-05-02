@@ -513,13 +513,13 @@ void PruneTreeNodes(TVector<double> & prevLoss,
 
         std::cerr << "Cnt: " << subtreeSize << " lp " << leftSubtreePruned << " rp " << rightSubtreePruned << std::endl;
 
-        if (leftSubtreePruned && !rightSubtreePruned) {
+        if (leftSubtreePruned) {
             if (monotonicFeatures[currMonotonicFeature] == EMonotonicity::Ascending)
                 setLeafsLoverBound(start + childSize, childSize, 0);
             else
                 setLeafsUpperBound(start + childSize, childSize, 0);
         }
-        if (!leftSubtreePruned && rightSubtreePruned) {
+        if (rightSubtreePruned) {
             if (monotonicFeatures[currMonotonicFeature] == EMonotonicity::Ascending)
                 setLeafsUpperBound(start, childSize, 0);
             else
