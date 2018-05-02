@@ -511,6 +511,8 @@ void PruneTreeNodes(TVector<double> & prevLoss,
         bool leftSubtreePruned = prune(start, childSize, currMonotonicFeature + 1);
         bool rightSubtreePruned = prune(start + childSize, childSize, currMonotonicFeature + 1);
 
+        std::cerr << "Cnt: " << subtreeSize << " lp " << leftSubtreePruned << " rp " << rightSubtreePruned << std::endl;
+
         if (leftSubtreePruned && !rightSubtreePruned) {
             if (monotonicFeatures[currMonotonicFeature] == EMonotonicity::Ascending)
                 setLeafsLoverBound(start + childSize, childSize, 0);
