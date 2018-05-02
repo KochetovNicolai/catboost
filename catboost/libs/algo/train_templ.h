@@ -587,7 +587,7 @@ void UpdateAveragingFold(
     }
 
     if (!monotonicFeatures.empty()) {
-        auto treeMonotonicFeatures = GetTreeMonotonicFeatures(bestSplitTree, monotonicFeatures);
+        auto treeMonotonicFeatures = GetTreeMonotonicFeatures<TError>(bestSplitTree, monotonicFeatures);
         MonotonizeLeaveValues<TError>(treeValues, bestSplitTree, currentTreeStats, ctx, treeMonotonicFeatures);
         THolder<IMetric> metric = CreateMetric(ctx->Params.LossFunctionDescription, approxDimension);
         int numLeafs = treeValues->at(0).ysize();
