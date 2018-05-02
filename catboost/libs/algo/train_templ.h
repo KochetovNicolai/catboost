@@ -596,6 +596,14 @@ void UpdateAveragingFold(
         TVector<double> prevIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, nullptr, numLeafs, indices);
         TVector<double> currIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, treeValues, numLeafs, indices);
         PruneTreeNodes<TError>(prevIterLeafsLoss, currIterLeafsLoss, treeMonotonicFeatures, treeValues, metric);
+        std::cerr << "Tree Leaves:" << std::endl;
+        for (auto & vals : *treeValues)
+        {
+            std::cerr << "dim: ";
+            for (auto val : vals)
+                std::cerr << val << ' ';
+            std::cerr << std::endl;
+        }
     }
 
     if (prevTreeValues)
