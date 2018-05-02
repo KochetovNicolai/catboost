@@ -329,7 +329,7 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
                                   int numLeafs,
                                   const TVector<TIndexType> & indices)
 {
-    TVector<double> metricPerLeaf(numLeafs);
+    TVector<double> metricPerLeaf(numLeafs, 0);
     TVector<TVector<int>> leafsIndices(numLeafs);
 
     const auto& avrgApprox = ctx->LearnProgress.AvrgApprox;
@@ -347,6 +347,10 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
 
     for (int leaf = 0; leaf < numLeafs; ++leaf) {
         const auto numDocs = leafsIndices[leaf].size();
+
+        if (numDocs == 0)
+            continue;
+
         TVector<TVector<double>> approx(approxDimension);
         TVector<float> target(numDocs);
         TVector<float> weight(numDocs);
