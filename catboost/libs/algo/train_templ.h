@@ -687,9 +687,9 @@ void PruneTreeNodes2(
             return treeLosses[leaf];
 
         int numLeafs = 1 << (numSplits - depth);
-        auto leftLoss = prune(2 * leaf, depth + 1);
-        auto rightLoss = prune(2 * leaf + 1, depth + 1);
-        auto curLoss = allLayersLeafValues[depth][leaf];
+        double leftLoss = prune(2 * leaf, depth + 1);
+        double rightLoss = prune(2 * leaf + 1, depth + 1);
+        double curLoss = allLayersLosses[depth][leaf];
         if (leftLoss + rightLoss > curLoss) {
             int rightIdx = (leaf + 1) * numLeafs;
 
