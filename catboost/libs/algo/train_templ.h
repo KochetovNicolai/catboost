@@ -621,7 +621,7 @@ void MonotonizeAllLayers(
         }
     };
 
-    int numDims = leafValues.at(0).ysize();
+    int numDims = leafValues.ysize();
     for (int dim = 0; dim < numDims; ++dim) {
         TVector<TVector<TMinMaxStats>> minMax(numSplits);
         for (int depth = 0; depth < numSplits; ++depth)
