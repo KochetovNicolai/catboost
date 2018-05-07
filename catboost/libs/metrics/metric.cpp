@@ -1631,7 +1631,8 @@ double EvalErrors(
     const TVector<float>& weight,
     const TVector<TQueryInfo>& queriesInfo,
     const THolder<IMetric>& error,
-    NPar::TLocalExecutor* localExecutor
+    NPar::TLocalExecutor* localExecutor,
+    bool getFinalError
 ) {
     TMetricHolder metric;
     if (error->GetErrorType() == EErrorType::PerObjectError) {
@@ -1645,5 +1646,5 @@ double EvalErrors(
         int queryStartIndex = 0, queryEndIndex = queriesInfo.ysize();
         metric = error->Eval(avrgApprox, target, weight, queriesInfo, queryStartIndex, queryEndIndex, *localExecutor);
     }
-    return error->GetFinalError(metric);
+    return getFinalError ? error->GetFinalError(metric) : metric.Error;
 }
