@@ -813,7 +813,7 @@ void UpdateAveragingFold(
             std::cerr << std::endl;
         }
 
-        MonotonizeAllLayers<TError>(monotonicFeatures, &allLayersValues, *treeValues, bestSplitTree);
+        MonotonizeAllLayers<TError>(monotonicFeatures, &allLayersValues, *treeValues, bestSplitTree, currentTreeStats);
 
         std::cerr << "Monotonized all layers values" << std::endl;
         for (int l = 0; l < allLayersValues.ysize(); ++l) {
