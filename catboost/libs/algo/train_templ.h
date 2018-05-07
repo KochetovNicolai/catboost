@@ -786,6 +786,15 @@ void UpdateAveragingFold(
             }
         }
 
+        std::cerr << "Leaf Leaves:" << std::endl;
+        for (auto & vals : *treeValues)
+        {
+            std::cerr << "dim:";
+            for (auto val : vals)
+                std::cerr << ' '<<  val;
+            std::cerr << std::endl;
+        }
+
         MonotonizeAllLayers<TError>(monotonicFeatures, &allLayersValues, *treeValues, bestSplitTree);
 
         std::cerr << "Monotonized all layers values" << std::endl;
