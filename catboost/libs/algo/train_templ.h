@@ -369,7 +369,7 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
 
     for (int doc = 0; doc < indices.ysize(); ++doc)
         if (doc < learnSampleCount)
-            leafsIndices[indices[learnPermutationData[doc]]].push_back(doc);
+            leafsIndices[indices[doc]].push_back(learnPermutationData[doc]);
 
     for (int leaf = 0; leaf < numLeafs; ++leaf) {
         const auto numDocs = leafsIndices[leaf].size();
