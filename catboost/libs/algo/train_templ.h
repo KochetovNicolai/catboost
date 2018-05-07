@@ -773,7 +773,44 @@ void UpdateAveragingFold(
         TVector<double> currIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, treeValues, numLeafs, indices);
         ///PruneTreeNodes<TError>(prevIterLeafsLoss, currIterLeafsLoss, treeMonotonicFeatures, treeValues, metric);
         TVector<TVector<TVector<double>>> allLayersValues = CalcLeafValuesAllLayers(bestSplitTree, learnData, testData, error, ctx);
+
+        std::cerr << "All layers values" << std::endl;
+        for (int l = 0; l < allLayersValues.ysize(); ++l) {
+            auto &layer = allLayersValues[l];
+            std::cerr << "Layer " << l;
+            for (auto & dim : layer) {
+                std::cerr << " dim:";
+                for (auto & val : dim)
+                    std::cerr << ' ' << val;
+                std::cerr << std::endl;
+            }
+        }
+
+        MonotonizeAllLayers<TError>(monotonicFeatures, &allLayersValues, *treeValues, bestSplitTree);
+
+        std::cerr << "Monotonized all layers values" << std::endl;
+        for (int l = 0; l < allLayersValues.ysize(); ++l) {
+            auto &layer = allLayersValues[l];
+            std::cerr << "Layer " << l;
+            for (auto & dim : layer) {
+                std::cerr << " dim:";
+                for (auto & val : dim)
+                    std::cerr << ' ' << val;
+                std::cerr << std::endl;
+            }
+        }
+
         TVector<TVector<double>> allLayersLosses = EvalMetricPerLeafAllLayers<TError>(learnData, testData, ctx, bestSplitTree, metric, allLayersValues);
+
+        std::cerr << "All layers losses" << std::endl;
+        for (int l = 0; l < allLayersLosses.ysize(); ++l) {
+            auto & layer = allLayersLosses[l];
+            std::cerr << "Layer " << l;
+            for (auto & val : layer)
+                std::cerr << ' ' << val;
+            std::cerr << std::endl;
+        }
+
         PruneTreeNodes2<TError>(allLayersValues, treeValues, allLayersLosses, currIterLeafsLoss);
 
         std::cerr << "Tree Leaves:" << std::endl;
