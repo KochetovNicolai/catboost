@@ -629,7 +629,7 @@ void MonotonizeAllLayers(
 
         auto & lastLayerMinMax = minMax.back();
         int lastLayerSize = lastLayerMinMax.ysize();
-        std::cerr << "llz" << std::endl;
+        std::cerr << "llz " << lastLayerSize << std::endl;
         for (int i = 0; i < lastLayerSize; ++i) {
             double left = leafValues[dim][2 * i];
             double right = leafValues[dim][2 * i + 1];
