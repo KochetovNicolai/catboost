@@ -630,7 +630,11 @@ void MonotonizeAllLayers(
 
         auto & lastLayerMinMax = minMax.back();
         int lastLayerSize = lastLayerMinMax.ysize();
-        std::cerr << "llz " << lastLayerSize << std::endl;
+        //std::cerr << "llz " << lastLayerSize << std::endl;
+        std::cerr << "W: ";
+        for (auto val : treeStats.LeafWeightsSum)
+            std::cerr << ' ' << val;
+        std::cerr << std::endl;
         for (int i = 0; i < lastLayerSize; ++i) {
             bool skipLeft = treeStats.LeafWeightsSum[2 * i] == 0;
             bool skipRight = treeStats.LeafWeightsSum[2 * i + 1] == 0;
