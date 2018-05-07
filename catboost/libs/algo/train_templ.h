@@ -644,6 +644,17 @@ void MonotonizeAllLayers(
             }
         }
 
+        std::cerr << "Minmax:" << std::endl;
+        int l = 0;
+        for (auto & vals : minMax)
+        {
+            std::cerr << "Layer " << l << "dim:";
+            ++l;
+            for (auto val : vals)
+                std::cerr << " (" <<  val.MinValue << ", " << val.MaxValue << ")";
+            std::cerr << std::endl;
+        }
+
         TMinMaxStats rootStats;
         monotonize(rootStats, 0, 0, dim, minMax);
     }
