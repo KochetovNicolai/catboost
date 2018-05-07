@@ -393,7 +393,7 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
             weight[doc] = learnWeight[permutedDocIdx];
 
             for (int dim = 0; dim < approxDimension; ++dim)
-                approx[dim][doc]= avrgApprox[dim][permutedDocIdx];
+                approx[dim][doc] = avrgApprox[dim][doc]; //[permutedDocIdx];
 
 //            if (!learnQueriesInfo.empty())
 //                queriesInfo[doc] = learnQueriesInfo[permutedDocIdx];
