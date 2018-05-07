@@ -549,7 +549,7 @@ TVector<TVector<TVector<double>>> CalcLeafValuesAllLayers(
 ) {
     TVector<TVector<TVector<double>>> allLayersLeafValues(tree.Splits.size());
     while (!tree.Splits.empty()) {
-        tree.Splits.pop_back();
+        tree.Splits.erase(tree.Splits.begin());
         TVector<TIndexType> indices;
         CalcLeafValues(
                 learnData,
@@ -692,7 +692,7 @@ TVector<TVector<double>> EvalMetricPerLeafAllLayers(
     TVector<TVector<double>> losses(numSplits);
     while (!tree.Splits.empty())
     {
-        tree.Splits.pop_back();
+        tree.Splits.erase(tree.Splits.begin());
         --numSplits;
         int numLeafs = 1 << numSplits;
         auto indices = BuildIndices(ctx->LearnProgress.AveragingFold, tree, learnData, testData, &ctx->LocalExecutor);
