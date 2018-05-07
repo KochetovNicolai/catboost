@@ -615,7 +615,7 @@ double EvalErrors(
     const TVector<TQueryInfo>& queriesInfo,
     const THolder<IMetric>& error,
     NPar::TLocalExecutor* localExecutor,
-    bool getFinalError = true)
+    bool getFinalError = true
 );
 
 inline bool IsMaxOptimal(const IMetric& metric) {
