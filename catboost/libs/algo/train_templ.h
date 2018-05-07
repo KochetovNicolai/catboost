@@ -362,14 +362,14 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
     const float* learnTarget = learnData.Target.data(); // ctx->LearnProgress.AveragingFold.LearnTarget.data();
     const float* learnWeight = learnData.Weights.data(); // ctx->LearnProgress.AveragingFold.LearnWeights.data();
     const auto& learnQueriesInfo = learnData.QueryInfo; //ctx->LearnProgress.AveragingFold.LearnQueriesInfo;
-    // const size_t* learnPermutationData = ctx->LearnProgress.AveragingFold.LearnPermutation.data();
+    const size_t* learnPermutationData = ctx->LearnProgress.AveragingFold.LearnPermutation.data();
 
     const int approxDimension = avrgApprox.ysize();
     const auto learnSampleCount = learnData.GetSampleCount();
 
     for (int doc = 0; doc < indices.ysize(); ++doc)
         if (doc < learnSampleCount)
-            leafsIndices[indices[doc]].push_back(doc);
+            leafsIndices[learnPermutationData[indices[doc]]].push_back(doc);
 
     for (int leaf = 0; leaf < numLeafs; ++leaf) {
         const auto numDocs = leafsIndices[leaf].size();
