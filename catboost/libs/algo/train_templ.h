@@ -359,10 +359,10 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
     TVector<TVector<int>> leafsIndices(numLeafs);
 
     const auto& avrgApprox = ctx->LearnProgress.AvrgApprox;
-    const float* learnTarget = ctx->LearnProgress.AveragingFold.LearnTarget.data();
-    const float* learnWeight = ctx->LearnProgress.AveragingFold.LearnWeights.data();
-    const auto& learnQueriesInfo = ctx->LearnProgress.AveragingFold.LearnQueriesInfo;
-    const size_t* learnPermutationData = ctx->LearnProgress.AveragingFold.LearnPermutation.data();
+    const float* learnTarget = learnData.Target.data(); // ctx->LearnProgress.AveragingFold.LearnTarget.data();
+    const float* learnWeight = learnData.Weights.data(); // ctx->LearnProgress.AveragingFold.LearnWeights.data();
+    const auto& learnQueriesInfo = learnData.QueryInfo; //ctx->LearnProgress.AveragingFold.LearnQueriesInfo;
+    // const size_t* learnPermutationData = ctx->LearnProgress.AveragingFold.LearnPermutation.data();
 
     const int approxDimension = avrgApprox.ysize();
     const auto learnSampleCount = learnData.GetSampleCount();
@@ -388,9 +388,9 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
         for (int doc = 0; doc < numDocs; ++doc)
         {
             const auto docIdx = leafsIndices[leaf][doc];
-            const auto permutedDocIdx = learnPermutationData[docIdx];
-            target[doc] = learnTarget[permutedDocIdx];
-            weight[doc] = learnWeight[permutedDocIdx];
+            //const auto permutedDocIdx = learnPermutationData[docIdx];
+            target[doc] = learnTarget[doc]; //[permutedDocIdx];
+            weight[doc] = learnWeight[doc]; //[permutedDocIdx];
 
             for (int dim = 0; dim < approxDimension; ++dim)
                 approx[dim][doc] = avrgApprox[dim][doc]; //[permutedDocIdx];
