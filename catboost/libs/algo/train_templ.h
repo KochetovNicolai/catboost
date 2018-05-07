@@ -374,6 +374,11 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
     for (int leaf = 0; leaf < numLeafs; ++leaf) {
         const auto numDocs = leafsIndices[leaf].size();
 
+        std::cerr << "Ind leaf " << leaf;
+        for (auto val : leafsIndices[leaf])
+            std::cerr << ' ' << val;
+        std::cerr << std::endl;
+
         if (numDocs == 0)
             continue;
 
