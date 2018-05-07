@@ -571,7 +571,7 @@ void MonotonizeAllLayers(
         return;
 
     struct TMinMaxStats {
-        double MinValue = std::numeric_limits<double>::min();
+        double MinValue = -std::numeric_limits<double>::max();
         double MaxValue = std::numeric_limits<double>::max();
 
         void update(const TMinMaxStats & stats) {
