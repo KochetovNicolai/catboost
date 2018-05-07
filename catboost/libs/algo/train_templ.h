@@ -632,14 +632,18 @@ void MonotonizeAllLayers(
         int lastLayerSize = lastLayerMinMax.ysize();
         std::cerr << "llz " << lastLayerSize << std::endl;
         for (int i = 0; i < lastLayerSize; ++i) {
-            if (treeStats.LeafWeightsSum[i] != 0) {
-                double left = leafValues[dim][2 * i];
-                double right = leafValues[dim][2 * i + 1];
+            bool skipLeft = treeStats.LeafWeightsSum[2 * i] == 0;
+            bool skipRight = treeStats.LeafWeightsSum[2 * i + 1] == 0;
+            double left = leafValues[dim][2 * i];
+            double right = leafValues[dim][2 * i + 1];
+            if (skipLeft && skipRight)
+                std::swap(lastLayerMinMax[i].MinValue, lastLayerMinMax[i].MaxValue);
+            else if (skipLeft)
+                lastLayerMinMax[i] = {right, right};
+            else if (skipRight)
+                lastLayerMinMax[i] = {left, left};
+            else
                 lastLayerMinMax[i] = {std::min(left, right), std::max(left, right)};
-            } else {
-                /// Skip empty nodes.
-                std::swap(lastLayerMinMax[i].MaxValue, lastLayerMinMax[i].MinValue);
-            }
         }
         for (int depth = numSplits - 2; depth >= 0; --depth) {
             TVector<TMinMaxStats> & layerMinMax = minMax[depth];
