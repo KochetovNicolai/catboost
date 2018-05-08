@@ -616,11 +616,11 @@ void MonotonizeAllLayers(
             if (mon == EMonotonicity::Ascending) {
                 auto childStats = stats;
                 childStats.MaxValue = std::min(childStats.MaxValue, rightMinMax.MinValue);
-                //std::cerr << "LS: (" << childStats.MinValue << ", " << childStats.MaxValue << ") ";
+                std::cerr << "LS: (" << childStats.MinValue << ", " << childStats.MaxValue << ") ";
                 monotonize(childStats, 2 * leaf, depth + 1, dim, minMax);
                 childStats = stats;
                 childStats.MinValue = std::max(childStats.MinValue, leftMinMax.MaxValue);
-                //std::cerr << "RS: (" << childStats.MinValue << ", " << childStats.MaxValue << ") " << std::endl;
+                std::cerr << "RS: (" << childStats.MinValue << ", " << childStats.MaxValue << ") " << std::endl;
                 monotonize(childStats, 2 * leaf + 1, depth + 1, dim, minMax);
             } else {
                 auto childStats = stats;
@@ -641,12 +641,12 @@ void MonotonizeAllLayers(
 
         auto & lastLayerMinMax = minMax.back();
         int lastLayerSize = lastLayerMinMax.ysize();
-        //std::cerr << "llz " << lastLayerSize << std::endl;
+//        std::cerr << "llz " << lastLayerSize << std::endl;
 //        std::cerr << "W: ";
 //        for (auto val : treeStats.LeafWeightsSum)
 //            std::cerr << ' ' << val;
 //        std::cerr << std::endl;
-        for (int i = 0; i < lastLayerSize; ++i) {
+//        for (int i = 0; i < lastLayerSize; ++i) {
             bool skipLeft = treeStats.LeafWeightsSum[2 * i] == 0;
             bool skipRight = treeStats.LeafWeightsSum[2 * i + 1] == 0;
             double left = leafValues[dim][2 * i];
