@@ -616,9 +616,11 @@ void MonotonizeAllLayers(
             if (mon == EMonotonicity::Ascending) {
                 auto childStats = stats;
                 childStats.MaxValue = std::min(childStats.MaxValue, rightMinMax.MinValue);
+                std::cerr << "LS: (" << childStats.MinValue << ", " << childStats.MaxValue << ") ";
                 monotonize(childStats, 2 * leaf, depth + 1, dim, minMax);
                 childStats = stats;
                 childStats.MinValue = std::max(childStats.MinValue, leftMinMax.MaxValue);
+                std::cerr << "RS: (" << childStats.MinValue << ", " << childStats.MaxValue << ") " << std::endl;
                 monotonize(childStats, 2 * leaf + 1, depth + 1, dim, minMax);
             } else {
                 auto childStats = stats;
