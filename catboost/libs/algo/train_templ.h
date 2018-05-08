@@ -374,10 +374,10 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
     for (int leaf = 0; leaf < numLeafs; ++leaf) {
         const auto numDocs = leafsIndices[leaf].size();
 
-        std::cerr << "Ind leaf " << leaf;
-        for (auto val : leafsIndices[leaf])
-            std::cerr << ' ' << val;
-        std::cerr << std::endl;
+//        std::cerr << "Ind leaf " << leaf;
+//        for (auto val : leafsIndices[leaf])
+//            std::cerr << ' ' << val;
+//        std::cerr << std::endl;
 
         if (numDocs == 0)
             continue;
@@ -516,7 +516,7 @@ void PruneTreeNodes(TVector<double> & prevLoss,
         bool leftSubtreePruned = prune(start, childSize, currMonotonicFeature + 1);
         bool rightSubtreePruned = prune(start + childSize, childSize, currMonotonicFeature + 1);
 
-        std::cerr << "Cnt: " << subtreeSize << " lp " << leftSubtreePruned << " rp " << rightSubtreePruned << std::endl;
+        // std::cerr << "Cnt: " << subtreeSize << " lp " << leftSubtreePruned << " rp " << rightSubtreePruned << std::endl;
 
         if (leftSubtreePruned) {
             if (monotonicFeatures[currMonotonicFeature] == EMonotonicity::Ascending)
@@ -596,11 +596,11 @@ void MonotonizeAllLayers(
             return;
 
 
-        auto & val = (*layersValues)[depth][dim][leaf];
-        std::cerr << "Depth " << depth << " mns " << numNotMonotonicSplits << " leaf " << leaf << " val " << val << " stats (" << stats.MinValue << ", " << stats.MaxValue << ") ";
-        val = std::min(val, stats.MaxValue);
-        val = std::max(val, stats.MinValue);
-        std::cerr << " res " << val << std::endl;
+//        auto & val = (*layersValues)[depth][dim][leaf];
+//        std::cerr << "Depth " << depth << " mns " << numNotMonotonicSplits << " leaf " << leaf << " val " << val << " stats (" << stats.MinValue << ", " << stats.MaxValue << ") ";
+//        val = std::min(val, stats.MaxValue);
+//        val = std::max(val, stats.MinValue);
+//        std::cerr << " res " << val << std::endl;
 
 
         if (depth + 1 >= numSplits)
@@ -642,10 +642,10 @@ void MonotonizeAllLayers(
         auto & lastLayerMinMax = minMax.back();
         int lastLayerSize = lastLayerMinMax.ysize();
         //std::cerr << "llz " << lastLayerSize << std::endl;
-        std::cerr << "W: ";
-        for (auto val : treeStats.LeafWeightsSum)
-            std::cerr << ' ' << val;
-        std::cerr << std::endl;
+//        std::cerr << "W: ";
+//        for (auto val : treeStats.LeafWeightsSum)
+//            std::cerr << ' ' << val;
+//        std::cerr << std::endl;
         for (int i = 0; i < lastLayerSize; ++i) {
             bool skipLeft = treeStats.LeafWeightsSum[2 * i] == 0;
             bool skipRight = treeStats.LeafWeightsSum[2 * i + 1] == 0;
@@ -669,16 +669,16 @@ void MonotonizeAllLayers(
             }
         }
 
-        std::cerr << "Minmax:" << std::endl;
-        int l = 0;
-        for (auto & vals : minMax)
-        {
-            std::cerr << "Layer " << l << "dim:";
-            ++l;
-            for (auto val : vals)
-                std::cerr << " (" <<  val.MinValue << ", " << val.MaxValue << ")";
-            std::cerr << std::endl;
-        }
+//        std::cerr << "Minmax:" << std::endl;
+//        int l = 0;
+//        for (auto & vals : minMax)
+//        {
+//            std::cerr << "Layer " << l << "dim:";
+//            ++l;
+//            for (auto val : vals)
+//                std::cerr << " (" <<  val.MinValue << ", " << val.MaxValue << ")";
+//            std::cerr << std::endl;
+//        }
 
         TMinMaxStats rootStats;
         monotonize(rootStats, 0, 0, dim, minMax);
@@ -811,62 +811,62 @@ void UpdateAveragingFold(
         ///PruneTreeNodes<TError>(prevIterLeafsLoss, currIterLeafsLoss, treeMonotonicFeatures, treeValues, metric);
         TVector<TVector<TVector<double>>> allLayersValues = CalcLeafValuesAllLayers(bestSplitTree, learnData, testData, error, ctx);
 
-        std::cerr << "All layers values" << std::endl;
-        for (int l = 0; l < allLayersValues.ysize(); ++l) {
-            auto &layer = allLayersValues[l];
-            std::cerr << "Layer " << l;
-            for (auto & dim : layer) {
-                std::cerr << " dim:";
-                for (auto & val : dim)
-                    std::cerr << ' ' << val;
-                std::cerr << std::endl;
-            }
-        }
-
-        std::cerr << "Leaf Leaves:" << std::endl;
-        for (auto & vals : *treeValues)
-        {
-            std::cerr << "dim:";
-            for (auto val : vals)
-                std::cerr << ' '<<  val;
-            std::cerr << std::endl;
-        }
+//        std::cerr << "All layers values" << std::endl;
+//        for (int l = 0; l < allLayersValues.ysize(); ++l) {
+//            auto &layer = allLayersValues[l];
+//            std::cerr << "Layer " << l;
+//            for (auto & dim : layer) {
+//                std::cerr << " dim:";
+//                for (auto & val : dim)
+//                    std::cerr << ' ' << val;
+//                std::cerr << std::endl;
+//            }
+//        }
+//
+//        std::cerr << "Leaf Leaves:" << std::endl;
+//        for (auto & vals : *treeValues)
+//        {
+//            std::cerr << "dim:";
+//            for (auto val : vals)
+//                std::cerr << ' '<<  val;
+//            std::cerr << std::endl;
+//        }
 
         MonotonizeAllLayers<TError>(treeMonotonicFeatures, &allLayersValues, *treeValues, bestSplitTree, currentTreeStats);
 
-        std::cerr << "Monotonized all layers values" << std::endl;
-        for (int l = 0; l < allLayersValues.ysize(); ++l) {
-            auto &layer = allLayersValues[l];
-            std::cerr << "Layer " << l;
-            for (auto & dim : layer) {
-                std::cerr << " dim:";
-                for (auto & val : dim)
-                    std::cerr << ' ' << val;
-                std::cerr << std::endl;
-            }
-        }
+//        std::cerr << "Monotonized all layers values" << std::endl;
+//        for (int l = 0; l < allLayersValues.ysize(); ++l) {
+//            auto &layer = allLayersValues[l];
+//            std::cerr << "Layer " << l;
+//            for (auto & dim : layer) {
+//                std::cerr << " dim:";
+//                for (auto & val : dim)
+//                    std::cerr << ' ' << val;
+//                std::cerr << std::endl;
+//            }
+//        }
 
         TVector<TVector<double>> allLayersLosses = EvalMetricPerLeafAllLayers<TError>(learnData, testData, ctx, bestSplitTree, metric, allLayersValues);
-
-        std::cerr << "All layers losses" << std::endl;
-        for (int l = 0; l < allLayersLosses.ysize(); ++l) {
-            auto & layer = allLayersLosses[l];
-            std::cerr << "Layer " << l;
-            for (auto & val : layer)
-                std::cerr << ' ' << val;
-            std::cerr << std::endl;
-        }
+//
+//        std::cerr << "All layers losses" << std::endl;
+//        for (int l = 0; l < allLayersLosses.ysize(); ++l) {
+//            auto & layer = allLayersLosses[l];
+//            std::cerr << "Layer " << l;
+//            for (auto & val : layer)
+//                std::cerr << ' ' << val;
+//            std::cerr << std::endl;
+//        }
 
         PruneTreeNodes2<TError>(allLayersValues, treeValues, allLayersLosses, currIterLeafsLoss);
-
-        std::cerr << "Tree Leaves:" << std::endl;
-        for (auto & vals : *treeValues)
-        {
-            std::cerr << "dim: ";
-            for (auto val : vals)
-                std::cerr << val << ' ';
-            std::cerr << std::endl;
-        }
+//
+//        std::cerr << "Tree Leaves:" << std::endl;
+//        for (auto & vals : *treeValues)
+//        {
+//            std::cerr << "dim: ";
+//            for (auto val : vals)
+//                std::cerr << val << ' ';
+//            std::cerr << std::endl;
+//        }
     }
 
     if (prevTreeValues)
