@@ -597,7 +597,7 @@ void MonotonizeAllLayers(
 
 
         auto & val = (*layersValues)[depth][dim][leaf];
-        std::cerr << "Depth " << depth << " mns" << numNotMonotonicSplits << " leaf " << leaf << " val " << val << " stats (" << stats.MinValue << ", " << stats.MaxValue << ") ";
+        std::cerr << "Depth " << depth << " mns " << numNotMonotonicSplits << " leaf " << leaf << " val " << val << " stats (" << stats.MinValue << ", " << stats.MaxValue << ") ";
         val = std::min(val, stats.MaxValue);
         val = std::max(val, stats.MinValue);
         std::cerr << " res " << val << std::endl;
@@ -832,7 +832,7 @@ void UpdateAveragingFold(
             std::cerr << std::endl;
         }
 
-        MonotonizeAllLayers<TError>(monotonicFeatures, &allLayersValues, *treeValues, bestSplitTree, currentTreeStats);
+        MonotonizeAllLayers<TError>(treeMonotonicFeatures, &allLayersValues, *treeValues, bestSplitTree, currentTreeStats);
 
         std::cerr << "Monotonized all layers values" << std::endl;
         for (int l = 0; l < allLayersValues.ysize(); ++l) {
