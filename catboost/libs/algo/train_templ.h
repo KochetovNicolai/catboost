@@ -614,20 +614,22 @@ void MonotonizeAllLayers(
             const TMinMaxStats & rightMinMax = minMax[depth + 1][2 * leaf + 1];
             const auto mon = treeMonotonicFeatures[depth - numNotMonotonicSplits];
             if (mon == EMonotonicity::Ascending) {
+                auto med = 0.5 * (leftMinMax.MaxValue + rightMinMax.MinValue);
                 auto childStats = stats;
-                childStats.MaxValue = std::min(childStats.MaxValue, rightMinMax.MinValue);
+                childStats.MaxValue = std::min(childStats.MaxValue, med);
                 std::cerr << "LS: (" << childStats.MinValue << ", " << childStats.MaxValue << ") ";
                 monotonize(childStats, 2 * leaf, depth + 1, dim, minMax);
                 childStats = stats;
-                childStats.MinValue = std::max(childStats.MinValue, leftMinMax.MaxValue);
+                childStats.MinValue = std::max(childStats.MinValue, med);
                 std::cerr << "RS: (" << childStats.MinValue << ", " << childStats.MaxValue << ") " << std::endl;
                 monotonize(childStats, 2 * leaf + 1, depth + 1, dim, minMax);
             } else {
+                auto med = 0.5 * (leftMinMax.MinValue + rightMinMax.MaxValue);
                 auto childStats = stats;
-                childStats.MinValue = std::max(childStats.MinValue, rightMinMax.MaxValue);
+                childStats.MinValue = std::max(childStats.MinValue, med);
                 monotonize(childStats, 2 * leaf, depth + 1, dim, minMax);
                 childStats = stats;
-                childStats.MaxValue = std::min(childStats.MaxValue, leftMinMax.MinValue);
+                childStats.MaxValue = std::min(childStats.MaxValue, med);
                 monotonize(childStats, 2 * leaf + 1, depth + 1, dim, minMax);
             }
         }
