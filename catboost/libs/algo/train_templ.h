@@ -646,7 +646,7 @@ void MonotonizeAllLayers(
 //        for (auto val : treeStats.LeafWeightsSum)
 //            std::cerr << ' ' << val;
 //        std::cerr << std::endl;
-//        for (int i = 0; i < lastLayerSize; ++i) {
+        for (int i = 0; i < lastLayerSize; ++i) {
             bool skipLeft = treeStats.LeafWeightsSum[2 * i] == 0;
             bool skipRight = treeStats.LeafWeightsSum[2 * i + 1] == 0;
             double left = leafValues[dim][2 * i];
