@@ -624,6 +624,8 @@ void MonotonizeAllLayers2(
                     double rightVal = nextLevelValues[2 * node + 1];
                     if (leftWeights + rightWeights > 0) {
                         double med = (leftWeights * leftVal + rightWeights * rightVal) / (leftWeights + rightWeights);
+                        const auto & minMax = curLayerMinMax[node];
+                        med = std::max(minMax.MinValue, std::min(minMax.MaxValue, med));
                         auto& leftMinMax = nextLayerMinMax[2 * node];
                         auto& rightMinMax = nextLayerMinMax[2 * node + 1];
                         leftMinMax = rightMinMax = curLayerMinMax[node];
