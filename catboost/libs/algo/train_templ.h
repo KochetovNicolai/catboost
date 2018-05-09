@@ -295,7 +295,7 @@ void UpdateLeafApproxes(
 {
     TProfileInfo& profile = ctx->Profile;
     const int approxDimension = ctx->LearnProgress.AvrgApprox.ysize();
-    const double learningRate = ctx->Params.BoostingOptions->LearningRate;
+//     const double learningRate = ctx->Params.BoostingOptions->LearningRate;
     const auto sampleCount = learnData.GetSampleCount() + (testData ? testData->GetSampleCount() : 0);
 
     constexpr double RollbackSign = RollbackTree ? -1 : 1;
@@ -566,6 +566,81 @@ TVector<TVector<TVector<double>>> CalcLeafValuesAllLayers(
 }
 
 template <typename TError>
+void MonotonizeAllLayers2(
+        const TVector<EMonotonicity> & treeMonotonicFeatures,
+        TVector<TVector<TVector<double>>>* layersValues,
+        TVector<TVector<double>>* leafValues,
+        const TSplitTree& tree,
+        const TTreeStats& treeStats
+) {
+    int numDims = leafValues->ysize();
+    int numSplits = tree.Splits.ysize();
+    int numNotMonotonicSplits = numSplits - treeMonotonicFeatures.ysize();
+    TVector<TVector<double>> layersWeights(numSplits);
+
+    /// Calc weights for all nodes.
+    for (int depth = numSplits; depth > 0; --depth) {
+        TVector<double> & curLayerWeights = layersWeights[depth - 1];
+        const TVector<double> nextLayerWeights = depth == numSplits ? treeStats.LeafWeightsSum : layersWeights[depth];
+        int numNodes = 1 << (depth - 1);
+        for (int node = 0; node < numNodes; ++node)
+            curLayerWeights[node] = nextLayerWeights[2 * node] + nextLayerWeights[2 * node + 1];
+    }
+
+    struct TMinMaxStats {
+        double MinValue = -std::numeric_limits<double>::max();
+        double MaxValue = std::numeric_limits<double>::max();
+
+        void update(const TMinMaxStats & stats) {
+            MinValue = std::min(MinValue, stats.MinValue);
+            MaxValue = std::max(MaxValue, stats.MaxValue);
+        }
+    };
+
+    /// Monotonise values in all layers consistently.
+    for (int dim = 0; dim < numDims, ++dim) {
+        TVector<TMinMax> curLayerMinMax(1);
+        for (int depth = 0; depth < numSplits; ++depth)
+        {
+            int numNodes = 1 << depth;
+            TVector<double> & curLevelValues = depth == numSplits ? (*leafValues)[dim]
+                                                                  : (*layersValues)[depth][dim];
+            for (int node = 0; node < numNodes; ++node) {
+                const auto & minMax = curLayerMinMax[node];
+                curLevelValues[node] = std::max(minMax.MinValue, std::min(minMax.MaxValue), curLevelValues[node]);
+            }
+
+            if (depth != numSplits && depth >= numNotMonotonicSplits) {
+                const auto mon = treeMonotonicFeatures[depth - numNotMonotonicSplits];
+                TVector<TMinMax> nextLayerMinMax(2 * numNodes);
+                TVector<double> & nextLevelValues = depth + 1 == numSplits ? (*leafValues)[dim]
+                                                                           : (*layersValues)[depth + 1][dim];
+                for (int node = 0; node < numNodes; ++node) {
+                    double leftWeights = layersWeights[depth + 1][2 * node];
+                    double rightWeights = layersWeights[depth + 1][2 * node + 1];
+                    double leftVal = nextLevelValues[2 * node];
+                    double rightVal = nextLevelValues[2 * node + 1];
+                    if (leftWeights + rightWeights > 0) {
+                        double med = (leftWeights * leftVal + rightWeights * rightVal) / (leftWeights + rightWeights);
+                        auto& leftMinMax = nextLayerMinMax[2 * node];
+                        auto& rightMinMax = nextLayerMinMax[2 * node + 1];
+                        leftMinMax = rightMinMax = curLayerMinMax[node];
+                        if (mon == EMonotonicity::Ascending) {
+                            leftMinMax.MaxValue = std::min(leftMinMax.MaxValue, med);
+                            rightMinMax.MinValue = std::max(rightMinMax.MinValue, med);
+                        } else {
+                            leftMinMax.MinValue = std::max(leftMinMax.MinValue, med);
+                            rightMinMax.MaxValue = std::min(rightMinMax.MaxValue, med);
+                        }
+                    }
+                }
+                curLayerMinMax.swap(nextLayerMinMax);
+            }
+        }
+    }
+}
+
+template <typename TError>
 void MonotonizeAllLayers(
     const TVector<EMonotonicity> & treeMonotonicFeatures,
     TVector<TVector<TVector<double>>> * layersValues,
@@ -799,7 +874,7 @@ void UpdateAveragingFold(
 
     if (!monotonicFeatures.empty()) {
         auto treeMonotonicFeatures = GetTreeMonotonicFeatures<TError>(bestSplitTree, monotonicFeatures);
-        MonotonizeLeaveValues<TError>(treeValues, bestSplitTree, currentTreeStats, ctx, treeMonotonicFeatures);
+        //MonotonizeLeaveValues<TError>(treeValues, bestSplitTree, currentTreeStats, ctx, treeMonotonicFeatures);
         THolder<IMetric> metric = CreateMetric(ctx->Params.LossFunctionDescription, approxDimension);
         int numLeafs = treeValues->at(0).ysize();
         ///TVector<double> prevIterLeafsLoss = EvalMetricPerLeaf<TError>(learnData, bestSplitTree, ctx, metric, nullptr, numLeafs, indices);
@@ -828,7 +903,7 @@ void UpdateAveragingFold(
             std::cerr << std::endl;
         }
 
-        MonotonizeAllLayers<TError>(treeMonotonicFeatures, &allLayersValues, *treeValues, bestSplitTree, currentTreeStats);
+        MonotonizeAllLayers2<TError>(treeMonotonicFeatures, &allLayersValues, treeValues, bestSplitTree, currentTreeStats);
 
         std::cerr << "Monotonized all layers values" << std::endl;
         for (int l = 0; l < allLayersValues.ysize(); ++l) {
@@ -840,6 +915,15 @@ void UpdateAveragingFold(
                     std::cerr << ' ' << val;
                 std::cerr << std::endl;
             }
+        }
+
+        std::cerr << "Monotonized leaf Leaves:" << std::endl;
+        for (auto & vals : *treeValues)
+        {
+            std::cerr << "dim:";
+            for (auto val : vals)
+                std::cerr << ' '<<  val;
+            std::cerr << std::endl;
         }
 
         TVector<TVector<double>> allLayersLosses = EvalMetricPerLeafAllLayers<TError>(learnData, testData, ctx, bestSplitTree, metric, allLayersValues);
