@@ -420,7 +420,7 @@ void Train(const TDataset& learnData, const TDataset& testData, TLearnContext* c
     }
 
     if (ctx->Params.BoostingOptions->IterationCount > 0 && !ctx->Params.DataProcessingOptions->MonotonicFeatures->empty()) {
-        UpdateLeafs(ctx, ctx->Params.BoostingOptions->LearningRate.Get());
+        UpdateLeafs(ctx, ctx->Params.BoostingOptions->LearningRate.Get() / 10.0);
     }
 }
 

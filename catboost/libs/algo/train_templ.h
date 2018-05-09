@@ -876,7 +876,7 @@ void UpdateAveragingFold(
     TVector<TIndexType> indices;
 
     if (!monotonicFeatures.empty()) {
-        double smooth = ctx->Params.BoostingOptions->LearningRate.Get();
+        double smooth = ctx->Params.BoostingOptions->LearningRate.Get() / 10.0;
         SmoothApproxes<TError::StoreExpApprox>(learnData, testData, ctx, smooth);
     }
 
