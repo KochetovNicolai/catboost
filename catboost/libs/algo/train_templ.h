@@ -581,7 +581,7 @@ void MonotonizeAllLayers2(
     /// Calc weights for all nodes.
     for (int depth = numSplits; depth > 0; --depth) {
         TVector<double> & curLayerWeights = layersWeights[depth - 1];
-        const TVector<double> nextLayerWeights = depth == numSplits ? treeStats.LeafWeightsSum : layersWeights[depth];
+        const auto& nextLayerWeights = depth == numSplits ? treeStats.LeafWeightsSum : layersWeights[depth + 1];
         int numNodes = 1 << (depth - 1);
         for (int node = 0; node < numNodes; ++node)
             curLayerWeights[node] = nextLayerWeights[2 * node] + nextLayerWeights[2 * node + 1];
