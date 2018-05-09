@@ -591,11 +591,6 @@ void MonotonizeAllLayers2(
     struct TMinMaxStats {
         double MinValue = -std::numeric_limits<double>::max();
         double MaxValue = std::numeric_limits<double>::max();
-
-        void update(const TMinMaxStats & stats) {
-            MinValue = std::min(MinValue, stats.MinValue);
-            MaxValue = std::max(MaxValue, stats.MaxValue);
-        }
     };
 
     /// Monotonise values in all layers consistently.
@@ -603,6 +598,11 @@ void MonotonizeAllLayers2(
         TVector<TMinMaxStats> curLayerMinMax(1);
         for (int depth = 0; depth <= numSplits; ++depth)
         {
+            std::cerr << "L " << depth << " MinMax:";
+            for (auto & mm : curLayerMinMax)
+                std::cerr << " (" << mm.MinValue << ", " << mm.MaxValue << ")";
+            std::cerr << std::endl;
+
             int numNodes = 1 << depth;
             TVector<double> & curLevelValues = depth == numSplits ? (*leafValues)[dim]
                                                                   : (*layersValues)[depth][dim];
