@@ -346,6 +346,47 @@ void UpdateLeafApproxes(
     }
 }
 
+template<bool StoreExpApprox>
+void SmoothApproxes(
+        const TDataset & learnData,
+        const TDataset * testData,
+        TLearnContext * ctx,
+        double smooth)
+{
+    TProfileInfo& profile = ctx->Profile;
+    const int approxDimension = ctx->LearnProgress.AvrgApprox.ysize();
+    const auto sampleCount = learnData.GetSampleCount() + (testData ? testData->GetSampleCount() : 0);
+
+    double weight = 1.0 - smooth;
+    double expWeight = StoreExpApprox ? fast_exp(weight) : weight;
+
+    Y_ASSERT(ctx->LearnProgress.AveragingFold.BodyTailArr.ysize() == 1);
+    TFold::TBodyTail& bt = ctx->LearnProgress.AveragingFold.BodyTailArr[0];
+
+    const int tailFinish = bt.TailFinish;
+    const int learnSampleCount = learnData.GetSampleCount();
+    for (int dim = 0; dim < approxDimension; ++dim) {
+        double* approxData = bt.Approx[dim].data();
+        double* avrgApproxData = ctx->LearnProgress.AvrgApprox[dim].data();
+        double* testApproxData = ctx->LearnProgress.TestApprox[dim].data();
+        ctx->LocalExecutor.ExecRange(
+                [=](int docIdx) {
+                    if (docIdx < tailFinish) {
+                        Y_VERIFY(docIdx < learnSampleCount);
+                        approxData[docIdx] = StoreExpApprox ? approxData[docIdx] - smooth * log(approxData[docIdx]) : approxData[docIdx] * weight;
+                    }
+                    if (docIdx < learnSampleCount) {
+                        avrgApproxData[docIdx] *= weight;
+                    } else {
+                        testApproxData[docIdx - learnSampleCount] *= weight;
+                    }
+                },
+                NPar::TLocalExecutor::TExecRangeParams(0, sampleCount).SetBlockSize(1000),
+                NPar::TLocalExecutor::WAIT_COMPLETE
+        );
+    }
+}
+
 template <typename Error>
 TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
                                   const TSplitTree & tree,
@@ -833,6 +874,11 @@ void UpdateAveragingFold(
 ) {
     TProfileInfo& profile = ctx->Profile;
     TVector<TIndexType> indices;
+
+    if (!monotonicFeatures.empty()) {
+        double smooth = ctx->Params.BoostingOptions->LearningRate.Get();
+        SmoothApproxes<TError::StoreExpApprox>(learnData, testData, ctx, smooth);
+    }
 
     CalcLeafValues(
         learnData,

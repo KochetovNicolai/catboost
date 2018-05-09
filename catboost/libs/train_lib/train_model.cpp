@@ -229,6 +229,24 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
     return !rollback;
 }
 
+void UpdateLeafs(TLearnContext* ctx, double smooth) {
+    if (smooth == 0)
+        return;
+
+    int numTrees = ctx->LearnProgress.TreeStruct.ysize();
+    double curWeight = 1.0;
+    for (int tree = numTrees - 1; tree >= 0; --tree) {
+        auto & leafValues = ctx->LearnProgress.LeafValues[tree];
+        int numDims = leafValues.ysize();
+        for (int dim = 0; dim < numDims; ++dim) {
+            for (auto & val : leafValues[dim])
+                val *= curWeight;
+        }
+
+        curWeight *= (1.0 - smooth);
+    }
+}
+
 void Train(const TDataset& learnData, const TDataset& testData, TLearnContext* ctx, TVector<TVector<double>>* testMultiApprox) {
     TProfileInfo& profile = ctx->Profile;
 
@@ -399,6 +417,10 @@ void Train(const TDataset& learnData, const TDataset& testData, TLearnContext* c
         const int itCount = errorTracker.GetBestIteration() + 1;
         MATRIXNET_NOTICE_LOG << "Shrink model to first " << itCount << " iterations." << Endl;
         ShrinkModel(itCount, &ctx->LearnProgress);
+    }
+
+    if (ctx->Params.BoostingOptions->IterationCount > 0 && !ctx->Params.DataProcessingOptions->MonotonicFeatures->empty()) {
+        UpdateLeafs(ctx, ctx->Params.BoostingOptions->LearningRate.Get());
     }
 }
 
