@@ -599,7 +599,7 @@ void MonotonizeAllLayers2(
 
     /// Monotonise values in all layers consistently.
     for (int dim = 0; dim < numDims; ++dim) {
-        TVector<TMinMax> curLayerMinMax(1);
+        TVector<TMinMaxStats> curLayerMinMax(1);
         for (int depth = 0; depth < numSplits; ++depth)
         {
             int numNodes = 1 << depth;
@@ -612,7 +612,7 @@ void MonotonizeAllLayers2(
 
             if (depth != numSplits && depth >= numNotMonotonicSplits) {
                 const auto mon = treeMonotonicFeatures[depth - numNotMonotonicSplits];
-                TVector<TMinMax> nextLayerMinMax(2 * numNodes);
+                TVector<TMinMaxStats> nextLayerMinMax(2 * numNodes);
                 TVector<double> & nextLevelValues = depth + 1 == numSplits ? (*leafValues)[dim]
                                                                            : (*layersValues)[depth + 1][dim];
                 for (int node = 0; node < numNodes; ++node) {
