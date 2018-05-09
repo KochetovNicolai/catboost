@@ -601,7 +601,7 @@ void MonotonizeAllLayers2(
     /// Monotonise values in all layers consistently.
     for (int dim = 0; dim < numDims; ++dim) {
         TVector<TMinMaxStats> curLayerMinMax(1);
-        for (int depth = 0; depth < numSplits; ++depth)
+        for (int depth = 0; depth <= numSplits; ++depth)
         {
             int numNodes = 1 << depth;
             TVector<double> & curLevelValues = depth == numSplits ? (*leafValues)[dim]
@@ -617,8 +617,9 @@ void MonotonizeAllLayers2(
                 TVector<double> & nextLevelValues = depth + 1 == numSplits ? (*leafValues)[dim]
                                                                            : (*layersValues)[depth + 1][dim];
                 for (int node = 0; node < numNodes; ++node) {
-                    double leftWeights = layersWeights[depth + 1][2 * node];
-                    double rightWeights = layersWeights[depth + 1][2 * node + 1];
+                    const auto & weights = depth + 1 == numSplits ? treeStats.LeafWeightsSum : layersWeights[depth + 1];
+                    double leftWeights = weights[2 * node];
+                    double rightWeights = weights[2 * node + 1];
                     double leftVal = nextLevelValues[2 * node];
                     double rightVal = nextLevelValues[2 * node + 1];
                     if (leftWeights + rightWeights > 0) {
