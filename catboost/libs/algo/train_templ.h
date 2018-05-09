@@ -607,7 +607,7 @@ void MonotonizeAllLayers2(
                                                                   : (*layersValues)[depth][dim];
             for (int node = 0; node < numNodes; ++node) {
                 const auto & minMax = curLayerMinMax[node];
-                curLevelValues[node] = std::max(minMax.MinValue, std::min(minMax.MaxValue), curLevelValues[node]);
+                curLevelValues[node] = std::max(minMax.MinValue, std::min(minMax.MaxValue, curLevelValues[node]));
             }
 
             if (depth != numSplits && depth >= numNotMonotonicSplits) {
