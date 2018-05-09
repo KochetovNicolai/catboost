@@ -598,7 +598,7 @@ void MonotonizeAllLayers2(
     };
 
     /// Monotonise values in all layers consistently.
-    for (int dim = 0; dim < numDims, ++dim) {
+    for (int dim = 0; dim < numDims; ++dim) {
         TVector<TMinMax> curLayerMinMax(1);
         for (int depth = 0; depth < numSplits; ++depth)
         {
