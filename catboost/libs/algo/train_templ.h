@@ -378,6 +378,7 @@ void SmoothApproxes(
 
     const int tailFinish = bt.TailFinish;
     const int learnSampleCount = learnData.GetSampleCount();
+    const size_t* learnPermutationData = ctx->LearnProgress.AveragingFold.LearnPermutation.data();
     for (int dim = 0; dim < approxDimension; ++dim) {
 
         double smooth = avgVar[dim] * ctx->Params.BoostingOptions->LearningRate.Get() / 10.0;
@@ -388,6 +389,7 @@ void SmoothApproxes(
         double* testApproxData = ctx->LearnProgress.TestApprox[dim].data();
         ctx->LocalExecutor.ExecRange(
                 [=](int docIdx) {
+                    const int permutedDocIdx = docIdx < learnSampleCount ? learnPermutationData[docIdx] : docIdx;
                     if (docIdx < tailFinish) {
                         Y_VERIFY(docIdx < learnSampleCount);
                         approxData[docIdx] = StoreExpApprox
@@ -395,7 +397,7 @@ void SmoothApproxes(
                                              : (approxData[docIdx] - mean) * weight + mean;
                     }
                     if (docIdx < learnSampleCount) {
-                        avrgApproxData[docIdx] = (avrgApproxData[docIdx] - mean) * weight + mean;
+                        avrgApproxData[permutedDocIdx] = (avrgApproxData[permutedDocIdx] - mean) * weight + mean;
                     } else {
                         testApproxData[docIdx - learnSampleCount] =
                                 (testApproxData[docIdx - learnSampleCount] - mean) * weight + mean;
