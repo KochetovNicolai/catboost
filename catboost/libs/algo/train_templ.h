@@ -482,6 +482,65 @@ TVector<double> EvalMetricPerLeaf(const TDataset & learnData,
 }
 
 template <typename TError>
+void SmoothTrees(const TDataset& learnData,
+                 const TDataset* testData,
+                 TLearnContext* ctx)
+{
+    int numTrees = ctx->LearnProgress.TreeStats.ysize();
+    if (numTrees < 10)
+        return;
+
+    int approxDimension = ctx->LearnProgress.ApproxDimension;
+    TVector<double> avgVar(approxDimension, 0);
+
+    for (const auto & stat : ctx->LearnProgress.TreeStats) {
+        if (!stat.LeafVar.empty()) {
+            for (int dim = 0; dim < approxDimension; ++dim)
+                avgVar[dim] += stat.LeafVar[dim];
+        }
+    }
+    for (auto & var : avgVar)
+        var = sqrt(var / ctx->LearnProgress.TreeStats.size());
+
+    int treeIdx = 0;
+    double maxVar = 0;
+
+    for (int tree = 0; tree < numTrees; ++tree) {
+        const auto & stat = ctx->LearnProgress.TreeStats[tree];
+        double var = 0;
+        if (!stat.LeafVar.empty()) {
+            for (int dim = 0; dim < approxDimension; ++dim) {
+                if (avgVar[dim] != 0)
+                    var = std::max(var, stat.LeafVar[dim] / avgVar[dim]);
+            }
+        }
+        if (maxVar < var) {
+            maxVar = var;
+            treeIdx = tree;
+        }
+    }
+
+    auto & tree = ctx->LearnProgress.TreeStruct[tree];
+    auto & stat = ctx->LearnProgress.TreeStats[treeIdx];
+    auto & treeValues = ctx->LearnProgress.LeafValues[treeIdx];
+    auto indices = BuildIndices(ctx->LearnProgress.AveragingFold, tree, learnData, testData, &ctx->LocalExecutor);
+    UpdateLeafApproxes<TError::StoreExpApprox, true>(learnData, testData, tree, ctx, treeValues, indices);
+
+    for (int dim = 0; dim < approxDimension; ++dim) {
+        if (avgVar[dim] != 0) {
+            auto & leafs = treeValues[dim];
+            double mean = stat.LeafMean.empty() ? 0 : stat.LeafMean[dim];
+            double var = stat.LeafVar.empty() ? 0 : stat.LeafMean[dim];
+            double smooth = avgVar[dim] / var;
+            for (auto & leaf : leafs)
+                leaf = (leaf - mean) * smooth + mean;
+        }
+    }
+
+    UpdateLeafApproxes<TError::StoreExpApprox>(learnData, testData, tree, ctx, treeValues, indices);
+}
+
+template <typename TError>
 void UpdateTreeLeaves(const TDataset& learnData,
                       const TDataset* testData,
                       const TError& error,
@@ -898,8 +957,8 @@ void UpdateAveragingFold(
     TProfileInfo& profile = ctx->Profile;
     TVector<TIndexType> indices;
 
-    if (!monotonicFeatures.empty())
-        SmoothApproxes<TError::StoreExpApprox>(learnData, testData, ctx);
+//    if (!monotonicFeatures.empty())
+//        SmoothApproxes<TError::StoreExpApprox>(learnData, testData, ctx);
 
     CalcLeafValues(
         learnData,
@@ -1197,6 +1256,8 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
 
         profile.AddOperation("Update final approxes");
         CheckInterrupted(); // check after long-lasting operation
+
+        SmoothTrees<TError>(learnData, testData, ctx);
 
 //        auto numAddedTrees = ctx->LearnProgress.TreeStruct.ysize();
 //        if (!monotonicFeatures.empty() && numAddedTrees > 1) {
