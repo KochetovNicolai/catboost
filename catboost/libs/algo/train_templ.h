@@ -350,21 +350,27 @@ template<bool StoreExpApprox>
 void SmoothApproxes(
         const TDataset & learnData,
         const TDataset * testData,
-        TLearnContext * ctx,
-        double smooth)
+        TLearnContext * ctx)
 {
     TProfileInfo& profile = ctx->Profile;
     const int approxDimension = ctx->LearnProgress.AvrgApprox.ysize();
     const auto sampleCount = learnData.GetSampleCount() + (testData ? testData->GetSampleCount() : 0);
 
-    double weight = 1.0 - smooth;
-
     TVector<double> totalMean(approxDimension, 0);
-    for (const auto & stat : ctx->LearnProgress.TreeStats) {
-        if (!stat.LeafMean.empty()) {
-            for (int dim = 0; dim < approxDimension; ++dim)
-                totalMean[dim] += stat.LeafMean[dim];
+    TVector<double> avgVar(approxDimension, 0);
+    if (!ctx->LearnProgress.TreeStats.empty()) {
+        for (const auto & stat : ctx->LearnProgress.TreeStats) {
+            if (!stat.LeafMean.empty()) {
+                for (int dim = 0; dim < approxDimension; ++dim)
+                    totalMean[dim] += stat.LeafMean[dim];
+            }
+            if (!stat.LeafVar.empty()) {
+                for (int dim = 0; dim < approxDimension; ++dim)
+                    avgVar[dim] += stat.LeafVar[dim];
+            }
         }
+        for (auto & var : avgVar)
+            var = sqrt(var / ctx->LearnProgress.TreeStats.size());
     }
 
     Y_ASSERT(ctx->LearnProgress.AveragingFold.BodyTailArr.ysize() == 1);
@@ -373,6 +379,9 @@ void SmoothApproxes(
     const int tailFinish = bt.TailFinish;
     const int learnSampleCount = learnData.GetSampleCount();
     for (int dim = 0; dim < approxDimension; ++dim) {
+
+        double smooth = avgVar[dim] * ctx->Params.BoostingOptions->LearningRate.Get() / 10.0;
+        double weight = 1.0 - smooth;
         double mean = totalMean[dim];
         double* approxData = bt.Approx[dim].data();
         double* avrgApproxData = ctx->LearnProgress.AvrgApprox[dim].data();
@@ -886,10 +895,8 @@ void UpdateAveragingFold(
     TProfileInfo& profile = ctx->Profile;
     TVector<TIndexType> indices;
 
-    if (!monotonicFeatures.empty()) {
-        double smooth = ctx->Params.BoostingOptions->LearningRate.Get() / 10.0;
-        SmoothApproxes<TError::StoreExpApprox>(learnData, testData, ctx, smooth);
-    }
+    if (!monotonicFeatures.empty())
+        SmoothApproxes<TError::StoreExpApprox>(learnData, testData, ctx);
 
     CalcLeafValues(
         learnData,

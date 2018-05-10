@@ -229,21 +229,37 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
     return !rollback;
 }
 
-void UpdateLeafs(TLearnContext* ctx, double smooth) {
-    if (smooth == 0)
-        return;
-
+void UpdateLeafs(TLearnContext* ctx) {
+    double smooth = ctx->Params.BoostingOptions->LearningRate.Get() / 10;
+    int numDims = ctx->LearnProgress.ApproxDimension;
     int numTrees = ctx->LearnProgress.TreeStruct.ysize();
+
+    TVector<TVector<double>> totalVar(approxDimension);
+    for (int tree = 0; tree < numTrees; ++tree) {
+        auto& var = totalVar[tree];
+
+        if (tree == 0)
+            var.resize(numDims, 0);
+        else {
+            var = totalVar[tree - 1];
+            auto& treeStats = ctx->LearnProgress.TreeStats[tree];
+            if (!treeStats.LeafVar.empty()) {
+                for (int dim = 0; dim < numTrees; ++dim)
+                    var[dim] += treeStats.LeafVar[dim];
+            }
+        }
+    }
+
     double curWeight = 1.0;
     for (int tree = numTrees - 1; tree >= 0; --tree) {
-        auto & leafValues = ctx->LearnProgress.LeafValues[tree];
-        auto & treeStats = ctx->LearnProgress.TreeStats[tree];
-        int numDims = leafValues.ysize();
+        auto& leafValues = ctx->LearnProgress.LeafValues[tree];
+        auto& treeStats = ctx->LearnProgress.TreeStats[tree];
         bool emptyMeans = treeStats.LeafMean.empty();
         for (int dim = 0; dim < numDims; ++dim) {
             double mean = emptyMeans ? 0 : treeStats.LeafMean[dim];
+            double var = sqrt(totalVar[tree][dim] / (tree + 1));
             for (auto & val : leafValues[dim])
-                val =  (val - mean) * curWeight + mean;
+                val =  (val - mean) * curWeight * var + mean;
         }
 
         curWeight *= (1.0 - smooth);
