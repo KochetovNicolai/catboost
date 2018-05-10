@@ -205,7 +205,7 @@ struct TTreeStats {
             if (varNorm != 0) {
                 for (int leaf = 0; leaf < numLeafs; ++leaf)
                     var += (treeValuse[leaf] - mean) * (treeValuse[leaf] - mean) * LeafWeightsSum[leaf];
-                var /= varNorm;
+                var *= varNorm;
             }
         }
     }
