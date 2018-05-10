@@ -520,7 +520,7 @@ void SmoothTrees(const TDataset& learnData,
         }
     }
 
-    auto & tree = ctx->LearnProgress.TreeStruct[tree];
+    auto & tree = ctx->LearnProgress.TreeStruct[treeIdx];
     auto & stat = ctx->LearnProgress.TreeStats[treeIdx];
     auto & treeValues = ctx->LearnProgress.LeafValues[treeIdx];
     auto indices = BuildIndices(ctx->LearnProgress.AveragingFold, tree, learnData, testData, &ctx->LocalExecutor);
