@@ -531,7 +531,7 @@ void SmoothTrees(const TDataset& learnData,
             double mean = stat.LeafMean.empty() ? 0 : stat.LeafMean[dim];
             double var = stat.LeafVar.empty() ? 0 : stat.LeafVar[dim];
             if (var > 0 && var > 4 * avgVar[dim]) {
-                double smooth = sqrt(avgVar[dim] / var);
+                double smooth = 0.5 * sqrt(avgVar[dim] / var);
                 std::cerr << "tree: " << treeIdx << " var " << var << " avg var " << avgVar[dim] << " smooth " << smooth
                           << std::endl;
                 for (auto & leaf : leafs)
