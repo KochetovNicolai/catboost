@@ -437,7 +437,7 @@ void Train(const TDataset& learnData, const TDataset& testData, TLearnContext* c
         ShrinkModel(itCount, &ctx->LearnProgress);
     }
 
-    if (!ctx->Params.DataProcessingOptions->MonotonicFeatures->empty()) {
+    if (ctx->Params.BoostingOptions->IterationCount > 0 && !ctx->Params.DataProcessingOptions->MonotonicFeatures->empty()) {
         UpdateLeafs(ctx);
     }
 }
