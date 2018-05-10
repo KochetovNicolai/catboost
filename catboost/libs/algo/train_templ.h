@@ -540,7 +540,7 @@ void SmoothTrees(const TDataset& learnData,
             }
     }
 
-    stat.CalcStats(treeValues);
+    //stat.CalcStats(treeValues);
     UpdateLeafApproxes<TError::StoreExpApprox>(learnData, testData, tree, ctx, treeValues, indices);
 }
 
