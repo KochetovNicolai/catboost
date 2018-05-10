@@ -231,7 +231,7 @@ bool Prune(TTrainOneIterationFunc & trainOneIterationFunc, const TDataset& learn
 
 void UpdateLeafs(TLearnContext* ctx) {
     double smooth = ctx->Params.BoostingOptions->LearningRate.Get() / 10;
-    int numDims = ctx->LearnProgress.ApproxDimension;
+    int approxDimension = ctx->LearnProgress.ApproxDimension;
     int numTrees = ctx->LearnProgress.TreeStruct.ysize();
 
     TVector<TVector<double>> totalVar(approxDimension);
@@ -239,7 +239,7 @@ void UpdateLeafs(TLearnContext* ctx) {
         auto& var = totalVar[tree];
 
         if (tree == 0)
-            var.resize(numDims, 0);
+            var.resize(approxDimension, 0);
         else {
             var = totalVar[tree - 1];
             auto& treeStats = ctx->LearnProgress.TreeStats[tree];
@@ -255,7 +255,7 @@ void UpdateLeafs(TLearnContext* ctx) {
         auto& leafValues = ctx->LearnProgress.LeafValues[tree];
         auto& treeStats = ctx->LearnProgress.TreeStats[tree];
         bool emptyMeans = treeStats.LeafMean.empty();
-        for (int dim = 0; dim < numDims; ++dim) {
+        for (int dim = 0; dim < approxDimension; ++dim) {
             double mean = emptyMeans ? 0 : treeStats.LeafMean[dim];
             double var = sqrt(totalVar[tree][dim] / (tree + 1));
             for (auto & val : leafValues[dim])
