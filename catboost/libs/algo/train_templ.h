@@ -373,7 +373,7 @@ void SmoothApproxes(
     const int tailFinish = bt.TailFinish;
     const int learnSampleCount = learnData.GetSampleCount();
     for (int dim = 0; dim < approxDimension; ++dim) {
-        double mean = totalMean[dim]
+        double mean = totalMean[dim];
         double* approxData = bt.Approx[dim].data();
         double* avrgApproxData = ctx->LearnProgress.AvrgApprox[dim].data();
         double* testApproxData = ctx->LearnProgress.TestApprox[dim].data();
