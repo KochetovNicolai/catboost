@@ -500,7 +500,7 @@ void SmoothTrees(const TDataset& learnData,
         }
     }
     for (auto & var : avgVar)
-        var = sqrt(var / ctx->LearnProgress.TreeStats.size());
+        var = sqrt(var / numTrees);
 
     int treeIdx = 0;
     double maxVar = 0;
@@ -530,7 +530,7 @@ void SmoothTrees(const TDataset& learnData,
         if (avgVar[dim] != 0) {
             auto & leafs = treeValues[dim];
             double mean = stat.LeafMean.empty() ? 0 : stat.LeafMean[dim];
-            double var = stat.LeafVar.empty() ? 0 : stat.LeafMean[dim];
+            double var = stat.LeafVar.empty() ? 0 : stat.LeafVar[dim];
             double smooth = avgVar[dim] / var;
             std::cerr << "var " << var << " avg var " << avgVar[dim] << " smooth " << smooth << std::endl;
             for (auto & leaf : leafs)
