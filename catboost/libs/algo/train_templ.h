@@ -487,7 +487,7 @@ void SmoothTrees(const TDataset& learnData,
                  TLearnContext* ctx)
 {
     int numTrees = ctx->LearnProgress.TreeStats.ysize();
-    if (numTrees < 10)
+    if (numTrees < 5)
         return;
 
     int approxDimension = ctx->LearnProgress.ApproxDimension;
@@ -532,7 +532,7 @@ void SmoothTrees(const TDataset& learnData,
             double mean = stat.LeafMean.empty() ? 0 : stat.LeafMean[dim];
             double var = stat.LeafVar.empty() ? 0 : stat.LeafVar[dim];
             double smooth = avgVar[dim] / var;
-            std::cerr << "var " << var << " avg var " << avgVar[dim] << " smooth " << smooth << std::endl;
+            std::cerr << "tree: " << treeIdx << "var " << var << " avg var " << avgVar[dim] << " smooth " << smooth << std::endl;
             for (auto & leaf : leafs)
                 leaf = (leaf - mean) * smooth + mean;
         }
