@@ -384,7 +384,7 @@ void SmoothApproxes(
         double smooth = ctx->Params.BoostingOptions->LearningRate.Get() / 10.0;
         double weight = /*avgVar[dim] */ (1.0 - smooth);
         double smoothedMean = totalMean[dim] * smooth;
-        double expSmoothedMean = exp_fast(smoothedMean);
+        double expSmoothedMean = fast_exp(smoothedMean);
         double* approxData = bt.Approx[dim].data();
         double* avrgApproxData = ctx->LearnProgress.AvrgApprox[dim].data();
         double* testApproxData = ctx->LearnProgress.TestApprox[dim].data();
