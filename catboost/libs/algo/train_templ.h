@@ -527,15 +527,16 @@ void SmoothTrees(const TDataset& learnData,
     UpdateLeafApproxes<TError::StoreExpApprox, true>(learnData, testData, tree, ctx, treeValues, indices);
 
     for (int dim = 0; dim < approxDimension; ++dim) {
-        if (avgVar[dim] != 0) {
             auto & leafs = treeValues[dim];
             double mean = stat.LeafMean.empty() ? 0 : stat.LeafMean[dim];
             double var = stat.LeafVar.empty() ? 0 : stat.LeafVar[dim];
-            double smooth = sqrt(avgVar[dim] / var);
-            std::cerr << "tree: " << treeIdx << " var " << var << " avg var " << avgVar[dim] << " smooth " << smooth << std::endl;
-            for (auto & leaf : leafs)
-                leaf = (leaf - mean) * smooth + mean;
-        }
+            if (var > 0 && var > 4 * avgVar[dim]) {
+                double smooth = sqrt(avgVar[dim] / var);
+                std::cerr << "tree: " << treeIdx << " var " << var << " avg var " << avgVar[dim] << " smooth " << smooth
+                          << std::endl;
+                for (auto & leaf : leafs)
+                    leaf = (leaf - mean) * smooth + mean;
+            }
     }
 
     stat.CalcStats(treeValues);
