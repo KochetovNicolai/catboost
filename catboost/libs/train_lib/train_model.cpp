@@ -237,10 +237,13 @@ void UpdateLeafs(TLearnContext* ctx, double smooth) {
     double curWeight = 1.0;
     for (int tree = numTrees - 1; tree >= 0; --tree) {
         auto & leafValues = ctx->LearnProgress.LeafValues[tree];
+        auto & treeStats = ctx->LearnProgress.TreeStats[tree];
         int numDims = leafValues.ysize();
+        bool emptyMeans = treeStats.LeafMean.empty();
         for (int dim = 0; dim < numDims; ++dim) {
+            double mean = emptyMeans ? 0 : treeStats.LeafMean[dim];
             for (auto & val : leafValues[dim])
-                val *= curWeight;
+                val =  (val - mean) * curWeight + mean;
         }
 
         curWeight *= (1.0 - smooth);

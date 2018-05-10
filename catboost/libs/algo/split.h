@@ -165,6 +165,50 @@ struct TSplitTree {
 
 struct TTreeStats {
     TVector<double> LeafWeightsSum;
+    /// Size is the number of dimensions.
+    TVector<double> LeafMean;
+    TVector<double> LeafVar;
 
-    Y_SAVELOAD_DEFINE(LeafWeightsSum);
+    void CalcStats(const TVector<TVector<double>> & leafValues) {
+        int numDims = leafValues.ysize();
+        LeafMean.resize(numDims, 0);
+        LeafVar.resize(numDims, 0);
+
+        int numLeafs = leafValues.ysize();
+        if (numLeafs == 0)
+            return;
+
+        double totalWeight = 0;
+        double totalSqrWeight = 0;
+        double varNorm = 0;
+        for (auto weight : LeafWeightsSum) {
+            totalWeight += weight;
+            totalSqrWeight += weight * weight;
+        }
+        if (totalWeight * totalWeight != totalSqrWeight)
+            varNorm = totalWeight / (totalWeight * totalWeight - totalSqrWeight);
+
+        if (totalWeight == 0)
+            return;
+
+        for (int dim = 0; dim < numDims; ++dim)
+        {
+            auto& treeValuse = leafValues[dim];
+            auto& mean = LeafMean[dim];
+            auto& var = LeafVar[dim];
+            Y_ASSERT(LeafWeightsSum.size() == treeValuse.size());
+
+            for (int leaf = 0; leaf < numLeafs; ++leaf)
+                mean += treeValuse[leaf] * LeafWeightsSum[leaf];
+            mean /= totalWeight;
+
+            if (varNorm != 0) {
+                for (int leaf = 0; leaf < numLeafs; ++leaf)
+                    var += (treeValuse[leaf] - mean) * (treeValuse[leaf] - mean) * LeafWeightsSum[leaf];
+                var /= varNorm;
+            }
+        }
+    }
+
+    Y_SAVELOAD_DEFINE(LeafWeightsSum, LeafMean, LeafVar);
 };

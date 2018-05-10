@@ -358,7 +358,14 @@ void SmoothApproxes(
     const auto sampleCount = learnData.GetSampleCount() + (testData ? testData->GetSampleCount() : 0);
 
     double weight = 1.0 - smooth;
-    double expWeight = StoreExpApprox ? fast_exp(weight) : weight;
+
+    TVector<double> totalMean(approxDimension, 0);
+    for (const auto & stat : ctx->LearnProgress.TreeStats) {
+        if (!stat.LeafMean.empty()) {
+            for (int dim = 0; dim < approxDimension; ++dim)
+                totalMean[dim] += stat.LeafMean[dim];
+        }
+    }
 
     Y_ASSERT(ctx->LearnProgress.AveragingFold.BodyTailArr.ysize() == 1);
     TFold::TBodyTail& bt = ctx->LearnProgress.AveragingFold.BodyTailArr[0];
@@ -366,6 +373,7 @@ void SmoothApproxes(
     const int tailFinish = bt.TailFinish;
     const int learnSampleCount = learnData.GetSampleCount();
     for (int dim = 0; dim < approxDimension; ++dim) {
+        double mean = totalMean[dim]
         double* approxData = bt.Approx[dim].data();
         double* avrgApproxData = ctx->LearnProgress.AvrgApprox[dim].data();
         double* testApproxData = ctx->LearnProgress.TestApprox[dim].data();
@@ -373,12 +381,15 @@ void SmoothApproxes(
                 [=](int docIdx) {
                     if (docIdx < tailFinish) {
                         Y_VERIFY(docIdx < learnSampleCount);
-                        approxData[docIdx] = StoreExpApprox ? approxData[docIdx] - smooth * log(approxData[docIdx]) : approxData[docIdx] * weight;
+                        approxData[docIdx] = StoreExpApprox
+                                             ? approxData[docIdx] * fast_exp(-smooth * (log(approxData[docIdx]) - mean))
+                                             : (approxData[docIdx] - mean) * weight + mean;
                     }
                     if (docIdx < learnSampleCount) {
-                        avrgApproxData[docIdx] *= weight;
+                        avrgApproxData[docIdx] = (avrgApproxData[docIdx] - mean) * weight + mean;
                     } else {
-                        testApproxData[docIdx - learnSampleCount] *= weight;
+                        testApproxData[docIdx - learnSampleCount] =
+                                (testApproxData[docIdx - learnSampleCount] - mean) * weight + mean;
                     }
                 },
                 NPar::TLocalExecutor::TExecRangeParams(0, sampleCount).SetBlockSize(1000),
@@ -997,6 +1008,8 @@ void UpdateAveragingFold(
                 std::cerr << val << ' ';
             std::cerr << std::endl;
         }
+
+        currentTreeStats.CalcStats(*treeValues);
     }
 
     if (prevTreeValues)
