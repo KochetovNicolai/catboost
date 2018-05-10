@@ -245,7 +245,7 @@ void UpdateLeafs(TLearnContext* ctx) {
             auto& treeStats = ctx->LearnProgress.TreeStats[tree];
             bool emptyVar = treeStats.LeafVar.empty();
             for (int dim = 0; dim < numTrees; ++dim)
-                var[dim] = prevVar[dim] + emptyVar ? 0 : treeStats.LeafVar[dim];
+                var[dim] = prevVar[dim] + (emptyVar ? 0 : treeStats.LeafVar[dim]);
         }
     }
 
