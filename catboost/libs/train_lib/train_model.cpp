@@ -238,14 +238,14 @@ void UpdateLeafs(TLearnContext* ctx) {
     for (int tree = 0; tree < numTrees; ++tree) {
         auto& var = totalVar[tree];
 
-        if (tree == 0)
-            var.resize(approxDimension, 0);
-        else {
-            var = totalVar[tree - 1];
+        var.resize(approxDimension, 0);
+
+        if (tree != 0) {
+            const auto& prevVar = totalVar[tree - 1];
             auto& treeStats = ctx->LearnProgress.TreeStats[tree];
             if (!treeStats.LeafVar.empty()) {
                 for (int dim = 0; dim < numTrees; ++dim)
-                    var[dim] += treeStats.LeafVar[dim];
+                    var[dim] = treeStats.LeafVar[dim] + prevVar[dim];
             }
         }
     }
@@ -258,7 +258,7 @@ void UpdateLeafs(TLearnContext* ctx) {
         for (int dim = 0; dim < approxDimension; ++dim) {
             double mean = emptyMeans ? 0 : treeStats.LeafMean[dim];
             double var = sqrt(totalVar[tree][dim] / (tree + 1));
-            for (auto & val : leafValues[dim])
+            for (auto& val : leafValues[dim])
                 val =  (val - mean) * curWeight * var + mean;
         }
 
