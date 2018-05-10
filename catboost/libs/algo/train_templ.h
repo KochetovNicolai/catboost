@@ -381,9 +381,10 @@ void SmoothApproxes(
     const size_t* learnPermutationData = ctx->LearnProgress.AveragingFold.LearnPermutation.data();
     for (int dim = 0; dim < approxDimension; ++dim) {
 
-        double smooth = avgVar[dim] * ctx->Params.BoostingOptions->LearningRate.Get() / 10.0;
-        double weight = 1.0 - smooth;
-        double mean = totalMean[dim];
+        double smooth = ctx->Params.BoostingOptions->LearningRate.Get() / 10.0;
+        double weight = /*avgVar[dim] */ (1.0 - smooth);
+        double smoothedMean = totalMean[dim] * smooth;
+        double expSmoothedMean = exp_fast(smoothedMean);
         double* approxData = bt.Approx[dim].data();
         double* avrgApproxData = ctx->LearnProgress.AvrgApprox[dim].data();
         double* testApproxData = ctx->LearnProgress.TestApprox[dim].data();
@@ -393,14 +394,14 @@ void SmoothApproxes(
                     if (docIdx < tailFinish) {
                         Y_VERIFY(docIdx < learnSampleCount);
                         approxData[docIdx] = StoreExpApprox
-                                             ? approxData[docIdx] * fast_exp(-smooth * (log(approxData[docIdx]) - mean))
-                                             : (approxData[docIdx] - mean) * weight + mean;
+                                             ? expSmoothedMean * fast_exp(weight * log(approxData[docIdx]))
+                                             : approxData[docIdx] * weight + smoothedMean;
                     }
                     if (docIdx < learnSampleCount) {
-                        avrgApproxData[permutedDocIdx] = (avrgApproxData[permutedDocIdx] - mean) * weight + mean;
+                        avrgApproxData[permutedDocIdx] = avrgApproxData[permutedDocIdx] * weight + smoothedMean;
                     } else {
-                        testApproxData[docIdx - learnSampleCount] =
-                                (testApproxData[docIdx - learnSampleCount] - mean) * weight + mean;
+                        testApproxData[docIdx - learnSampleCount] *= weight;
+                        testApproxData[docIdx - learnSampleCount] += smoothedMean;
                     }
                 },
                 NPar::TLocalExecutor::TExecRangeParams(0, sampleCount).SetBlockSize(1000),

@@ -234,33 +234,33 @@ void UpdateLeafs(TLearnContext* ctx) {
     int approxDimension = ctx->LearnProgress.ApproxDimension;
     int numTrees = ctx->LearnProgress.TreeStruct.ysize();
 
-    TVector<TVector<double>> totalVar(numTrees);
-    for (int tree = 0; tree < numTrees; ++tree) {
-        auto& var = totalVar[tree];
+//    TVector<TVector<double>> totalVar(numTrees);
+//    for (int tree = 0; tree < numTrees; ++tree) {
+//        auto& var = totalVar[tree];
+//
+//        var.resize(approxDimension, 0);
+//
+//        if (tree != 0) {
+//            const auto& prevVar = totalVar[tree - 1];
+//            auto& treeStats = ctx->LearnProgress.TreeStats[tree];
+//            bool emptyVar = treeStats.LeafVar.empty();
+//            for (int dim = 0; dim < numTrees; ++dim)
+//                var[dim] = prevVar[dim] + (emptyVar ? 0 : treeStats.LeafVar[dim]);
+//        }
+//    }
 
-        var.resize(approxDimension, 0);
-
-        if (tree != 0) {
-            const auto& prevVar = totalVar[tree - 1];
-            auto& treeStats = ctx->LearnProgress.TreeStats[tree];
-            bool emptyVar = treeStats.LeafVar.empty();
-            for (int dim = 0; dim < numTrees; ++dim)
-                var[dim] = prevVar[dim] + (emptyVar ? 0 : treeStats.LeafVar[dim]);
-        }
-    }
-
-    double curWeight = 1.0;
-    for (int tree = numTrees - 1; tree >= 0; --tree) {
-        for (int dim = 0; dim < approxDimension; ++dim) {
+    for (int dim = 0; dim < approxDimension; ++dim) {
+        double curWeight = 1.0;
+        for (int tree = numTrees - 1; tree >= 0; --tree) {
             auto & leafValues = ctx->LearnProgress.LeafValues[tree][dim];
             auto & treeStats = ctx->LearnProgress.TreeStats[tree];
             bool emptyMeans = treeStats.LeafMean.empty();
             double mean = emptyMeans ? 0 : treeStats.LeafMean[dim];
-            double var = sqrt(totalVar[tree][dim] / (tree + 1));
+            //double var = sqrt(totalVar[tree][dim] / (tree + 1));
             for (auto & val : leafValues)
-                val = (val - mean) * curWeight * var + mean;
+                val = (val - mean) * curWeight + mean;
+            curWeight *= (1.0 - smooth);
         }
-        curWeight *= (1.0 - smooth);
     }
 }
 
