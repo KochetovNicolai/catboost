@@ -234,7 +234,7 @@ void UpdateLeafs(TLearnContext* ctx) {
     int approxDimension = ctx->LearnProgress.ApproxDimension;
     int numTrees = ctx->LearnProgress.TreeStruct.ysize();
 
-    TVector<TVector<double>> totalVar(approxDimension);
+    TVector<TVector<double>> totalVar(numTrees);
     for (int tree = 0; tree < numTrees; ++tree) {
         auto& var = totalVar[tree];
 
