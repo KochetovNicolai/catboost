@@ -174,7 +174,7 @@ struct TTreeStats {
         LeafMean.resize(numDims, 0);
         LeafVar.resize(numDims, 0);
 
-        int numLeafs = leafValues.ysize();
+        int numLeafs = leafValues.at(0).ysize();
         if (numLeafs == 0)
             return;
 
