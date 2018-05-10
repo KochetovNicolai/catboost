@@ -243,10 +243,9 @@ void UpdateLeafs(TLearnContext* ctx) {
         if (tree != 0) {
             const auto& prevVar = totalVar[tree - 1];
             auto& treeStats = ctx->LearnProgress.TreeStats[tree];
-            if (!treeStats.LeafVar.empty()) {
-                for (int dim = 0; dim < numTrees; ++dim)
-                    var[dim] = treeStats.LeafVar[dim] + prevVar[dim];
-            }
+            bool emptyVar = treeStats.LeafVar.empty();
+            for (int dim = 0; dim < numTrees; ++dim)
+                var[dim] = prevVar[dim] + emptyVar ? 0 : treeStats.LeafVar[dim];
         }
     }
 
