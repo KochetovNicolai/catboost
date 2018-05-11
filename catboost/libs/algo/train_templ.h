@@ -1261,7 +1261,8 @@ void TrainOneIter(const TDataset& learnData, const TDataset* testData, TLearnCon
         profile.AddOperation("Update final approxes");
         CheckInterrupted(); // check after long-lasting operation
 
-        SmoothTrees<TError>(learnData, testData, ctx);
+        if (!monotonicFeatures.empty())
+            SmoothTrees<TError>(learnData, testData, ctx);
 
 //        auto numAddedTrees = ctx->LearnProgress.TreeStruct.ysize();
 //        if (!monotonicFeatures.empty() && numAddedTrees > 1) {
